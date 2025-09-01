@@ -1,99 +1,151 @@
-import { 
-  Column, ColumnRenderer, TableOptions, validateOptions, validateColumn,
-  TextColumn, NumberColumn, SelectColumn, DateColumn, BooleanColumn, CustomColumn,
-  TableId, ColumnId, createColumnId
-} from './types'
+import { z } from "zod";
+import {
+  Column,
+  ColumnRenderer,
+  TableOptions,
+  ColumnTypeDefinition,
+  ColumnTypeRegistry,
+  ColumnTypeAlignment,
+  ColumnTypeCategory,
+  TableConfiguration,
+  TableConfigMaster,
+  validateOptions,
+  validateColumn,
+  createColumnTypeRegistry,
+  TableId,
+  ColumnId,
+  createColumnId,
+  CellRendererProps,
+} from "./types";
 
-// === Column Builder Class ===
-export class ColumnBuilder<T extends Column = Column> {
-  constructor(
-    private readonly type: string,
-    private readonly config: Record<string, unknown> = {}
-  ) {}
+// === Built-in Column Type Definitions ===
+export const createTextType = (): ColumnTypeDefinition<string> => ({
+  type: "text",
+  category: "text",
+  label: "Text",
+  description: "Single or multi-line text input",
+  defaultValue: "",
+  alignment: "left",
+  headerAlignment: "left",
+  validate: (value: unknown) => String(value || ""),
+  format: (value: string) => value,
+  configSchema: z.object({
+    placeholder: z.string().optional(),
+    maxLength: z.number().optional(),
+    multiline: z.boolean().default(false),
+  }),
+  defaultConfig: {
+    placeholder: "Enter text...",
+    multiline: false,
+  },
+});
 
-  width(width: number): ColumnBuilder<T> {
-    return new ColumnBuilder(this.type, { ...this.config, width })
-  }
+export const createNumberType = (): ColumnTypeDefinition<number> => ({
+  type: "number",
+  category: "number",
+  label: "Number",
+  description: "Numeric input with formatting options",
+  defaultValue: 0,
+  alignment: "right",
+  headerAlignment: "right",
+  validate: (value: unknown) => {
+    const num = parseFloat(String(value));
+    return isNaN(num) ? 0 : num;
+  },
+  format: (value: number) => value.toLocaleString(),
+  configSchema: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    step: z.number().default(1),
+    precision: z.number().optional(),
+    format: z.enum(["decimal", "currency", "percentage"]).default("decimal"),
+  }),
+  defaultConfig: {
+    step: 1,
+    format: "decimal",
+  },
+});
 
-  required(required = true): ColumnBuilder<T> {
-    return new ColumnBuilder(this.type, { ...this.config, required })
-  }
+export const createBooleanType = (): ColumnTypeDefinition<boolean> => ({
+  type: "boolean",
+  category: "boolean",
+  label: "Boolean",
+  description: "True/false checkbox or toggle",
+  defaultValue: false,
+  alignment: "center",
+  headerAlignment: "center",
+  validate: (value: unknown) => Boolean(value),
+  format: (value: boolean) => (value ? "Yes" : "No"),
+  configSchema: z.object({
+    trueLabel: z.string().default("Yes"),
+    falseLabel: z.string().default("No"),
+  }),
+  defaultConfig: {
+    trueLabel: "Yes",
+    falseLabel: "No",
+  },
+});
 
-  readonly(readonly = true): ColumnBuilder<T> {
-    return new ColumnBuilder(this.type, { ...this.config, readonly })
-  }
+export const createDateType = (): ColumnTypeDefinition<Date> => ({
+  type: "date",
+  category: "date",
+  label: "Date",
+  description: "Date and time picker",
+  defaultValue: new Date(),
+  alignment: "left",
+  headerAlignment: "left",
+  validate: (value: unknown) => {
+    if (value instanceof Date) return value;
+    const date = new Date(String(value));
+    return isNaN(date.getTime()) ? new Date() : date;
+  },
+  format: (value: Date) => value.toLocaleDateString(),
+  configSchema: z.object({
+    format: z.enum(["date", "datetime", "time"]).default("date"),
+    min: z.string().optional(),
+    max: z.string().optional(),
+  }),
+  defaultConfig: {
+    format: "date",
+  },
+});
 
-  build(id: ColumnId, tableId: TableId, position: number): T {
-    const { name, width = 200, required = false, readonly = false, ...rest } = this.config
-    
-    return validateColumn({
-      id,
-      tableId,
-      name,
-      type: this.type,
-      width,
-      position,
-      required,
-      readonly,
-      ...(this.type !== 'text' && this.type !== 'number' && this.type !== 'date' && this.type !== 'boolean' ? 
-          { config: rest } : 
-          { config: rest })
-    }) as T
-  }
-}
+export const createSelectType = (): ColumnTypeDefinition<
+  string | string[]
+> => ({
+  type: "select",
+  category: "select",
+  label: "Select",
+  description: "Dropdown selection with options",
+  defaultValue: "",
+  alignment: "left",
+  headerAlignment: "left",
+  validate: (value: unknown) => String(value || ""),
+  format: (value: string | string[]) =>
+    Array.isArray(value) ? value.join(", ") : String(value),
+  configSchema: z.object({
+    options: z
+      .array(
+        z.object({
+          value: z.string(),
+          label: z.string(),
+          color: z.string().optional(),
+        }),
+      )
+      .min(1),
+    multiple: z.boolean().default(false),
+  }),
+  defaultConfig: {
+    options: [],
+    multiple: false,
+  },
+});
 
-// === Specialized Column Builders ===
-export class TextColumnBuilder extends ColumnBuilder<TextColumn> {
-  placeholder(placeholder: string): TextColumnBuilder {
-    return new TextColumnBuilder('text', { ...this.config, placeholder })
-  }
-
-  maxLength(maxLength: number): TextColumnBuilder {
-    return new TextColumnBuilder('text', { ...this.config, maxLength })
-  }
-
-  multiline(multiline = true): TextColumnBuilder {
-    return new TextColumnBuilder('text', { ...this.config, multiline })
-  }
-}
-
-export class NumberColumnBuilder extends ColumnBuilder<NumberColumn> {
-  min(min: number): NumberColumnBuilder {
-    return new NumberColumnBuilder('number', { ...this.config, min })
-  }
-
-  max(max: number): NumberColumnBuilder {
-    return new NumberColumnBuilder('number', { ...this.config, max })
-  }
-
-  step(step: number): NumberColumnBuilder {
-    return new NumberColumnBuilder('number', { ...this.config, step })
-  }
-
-  precision(precision: number): NumberColumnBuilder {
-    return new NumberColumnBuilder('number', { ...this.config, precision })
-  }
-
-  format(format: 'decimal' | 'currency' | 'percentage'): NumberColumnBuilder {
-    return new NumberColumnBuilder('number', { ...this.config, format })
-  }
-}
-
-export class SelectColumnBuilder extends ColumnBuilder<SelectColumn> {
-  options(options: Array<{ value: string; label: string; color?: string }>): SelectColumnBuilder {
-    return new SelectColumnBuilder('select', { ...this.config, options })
-  }
-
-  multiple(multiple = true): SelectColumnBuilder {
-    return new SelectColumnBuilder('select', { ...this.config, multiple })
-  }
-}
-
-// === Table Configuration Builder ===
-export class TableConfig {
-  private options: TableOptions
-  private renderers = new Map<string, ColumnRenderer>()
-  private columnBuilders: ColumnBuilder[] = []
+// === Master Configuration Class ===
+export class TableMasterConfig implements TableConfigMaster {
+  private options: TableOptions;
+  private typeRegistry: ColumnTypeRegistry;
+  private renderers = new Map<string, ColumnRenderer>();
 
   constructor(options: Partial<TableOptions> = {}) {
     this.options = validateOptions({
@@ -101,154 +153,262 @@ export class TableConfig {
       showSelectAll: true,
       enableSelection: true,
       enableEditing: true,
-      columnSizing: 'balanced',
+      showActionColumn: true,
+      columnSizing: "balanced",
       minColumnWidth: 80,
       maxColumnWidth: 400,
-      density: 'normal',
+      density: "normal",
       striped: false,
-      ...options
-    })
+      headerAlignment: "left",
+      cellAlignment: "left",
+      defaultColumnType: "text",
+      ...options,
+    });
+
+    this.typeRegistry = createColumnTypeRegistry();
+
+    // Register built-in types
+    this.registerBuiltInTypes();
+  }
+
+  private registerBuiltInTypes(): void {
+    this.typeRegistry.registerType(createTextType());
+    this.typeRegistry.registerType(createNumberType());
+    this.typeRegistry.registerType(createBooleanType());
+    this.typeRegistry.registerType(createDateType());
+    this.typeRegistry.registerType(createSelectType());
+  }
+
+  // === Configuration Methods ===
+  setOptions(options: Partial<TableOptions>): TableMasterConfig {
+    this.options = validateOptions({ ...this.options, ...options });
+    return this;
+  }
+
+  addColumnType<T>(definition: ColumnTypeDefinition<T>): TableMasterConfig {
+    this.typeRegistry.registerType(definition);
+    return this;
+  }
+
+  addRenderer<T>(renderer: ColumnRenderer<T>): TableMasterConfig {
+    this.renderers.set(renderer.type, renderer);
+    return this;
   }
 
   // === Fluent Configuration API ===
-  density(density: 'compact' | 'normal' | 'comfortable'): TableConfig {
-    this.options = { ...this.options, density }
-    return this
+  density(density: "compact" | "normal" | "comfortable"): TableMasterConfig {
+    return this.setOptions({ density });
   }
 
-  columnSizing(mode: 'fixed' | 'auto' | 'balanced'): TableConfig {
-    this.options = { ...this.options, columnSizing: mode }
-    return this
+  columnSizing(mode: "fixed" | "auto" | "balanced"): TableMasterConfig {
+    return this.setOptions({ columnSizing: mode });
   }
 
-  selection(enabled: boolean): TableConfig {
-    this.options = { 
-      ...this.options, 
+  selection(enabled: boolean): TableMasterConfig {
+    return this.setOptions({
       enableSelection: enabled,
       showSelectAll: enabled,
-      showRowNumbers: enabled
-    }
-    return this
+    });
   }
 
-  editing(enabled: boolean): TableConfig {
-    this.options = { ...this.options, enableEditing: enabled }
-    return this
+  editing(enabled: boolean): TableMasterConfig {
+    return this.setOptions({ enableEditing: enabled });
   }
 
-  striped(enabled: boolean): TableConfig {
-    this.options = { ...this.options, striped: enabled }
-    return this
+  striped(enabled: boolean): TableMasterConfig {
+    return this.setOptions({ striped: enabled });
   }
 
-  // === Renderer Registration ===
-  addRenderer<T = unknown>(renderer: ColumnRenderer<T>): TableConfig {
-    this.renderers.set(renderer.type, renderer)
-    return this
+  actionColumn(enabled: boolean): TableMasterConfig {
+    return this.setOptions({ showActionColumn: enabled });
   }
 
-  customColumn<T = unknown>(
+  alignment(
+    cell: ColumnTypeAlignment,
+    header?: ColumnTypeAlignment,
+  ): TableMasterConfig {
+    return this.setOptions({
+      cellAlignment: cell,
+      headerAlignment: header || cell,
+    });
+  }
+
+  availableTypes(...types: string[]): TableMasterConfig {
+    return this.setOptions({ availableColumnTypes: types });
+  }
+
+  defaultType(type: string): TableMasterConfig {
+    return this.setOptions({ defaultColumnType: type });
+  }
+
+  // === Build Configuration ===
+  build(): TableConfiguration {
+    return {
+      options: this.options,
+      typeRegistry: this.typeRegistry,
+      renderers: this.renderers,
+
+      getAvailableTypes: () => {
+        const available = this.options.availableColumnTypes;
+        if (available && available.length > 0) {
+          return available
+            .map((type) => this.typeRegistry.getType(type))
+            .filter((def): def is ColumnTypeDefinition => def !== undefined);
+        }
+        return this.typeRegistry.getAllTypes();
+      },
+
+      getDefaultValue: (type: string) => {
+        const typeDef = this.typeRegistry.getType(type);
+        return typeDef?.defaultValue ?? null;
+      },
+
+      getAlignment: (type: string) => {
+        const typeDef = this.typeRegistry.getType(type);
+        return typeDef?.alignment ?? this.options.cellAlignment;
+      },
+
+      getHeaderAlignment: (type: string) => {
+        const typeDef = this.typeRegistry.getType(type);
+        return typeDef?.headerAlignment ?? this.options.headerAlignment;
+      },
+
+      validateValue: (value: unknown, type: string) => {
+        const typeDef = this.typeRegistry.getType(type);
+        return typeDef?.validate(value) ?? value;
+      },
+
+      formatValue: (value: unknown, type: string) => {
+        const typeDef = this.typeRegistry.getType(type);
+        return typeDef?.format?.(value as any) ?? String(value);
+      },
+    };
+  }
+
+  getConfig(): TableConfiguration {
+    return this.build();
+  }
+
+  // === Column Creation Helpers ===
+  createColumn(
+    tableId: TableId,
     type: string,
-    component: React.ComponentType<import('./types').CellRendererProps<T>>,
-    validate: (value: unknown, column: Column) => T,
-    defaultValue: T
-  ): TableConfig {
-    return this.addRenderer({ type, component, validate, defaultValue })
+    name: string,
+    position: number,
+    overrides: Partial<Column> = {},
+  ): Column {
+    const typeDef = this.typeRegistry.getType(type);
+    const id = createColumnId(`${tableId}-${type}-${position}-${Date.now()}`);
+
+    return validateColumn({
+      id,
+      tableId,
+      type,
+      name,
+      position,
+      width: 200,
+      required: false,
+      readonly: false,
+      config: typeDef?.defaultConfig || {},
+      alignment: typeDef?.alignment,
+      headerAlignment: typeDef?.headerAlignment,
+      ...overrides,
+    });
   }
 
-  // === Strongly-Typed Column Builders ===
-  text(name: string): TextColumnBuilder {
-    const builder = new TextColumnBuilder('text', { name })
-    this.columnBuilders.push(builder)
-    return builder
-  }
-
-  number(name: string): NumberColumnBuilder {
-    const builder = new NumberColumnBuilder('number', { name })
-    this.columnBuilders.push(builder)
-    return builder
-  }
-
-  select(name: string): SelectColumnBuilder {
-    const builder = new SelectColumnBuilder('select', { name })
-    this.columnBuilders.push(builder)
-    return builder
-  }
-
-  date(name: string): ColumnBuilder<DateColumn> {
-    const builder = new ColumnBuilder<DateColumn>('date', { name })
-    this.columnBuilders.push(builder)
-    return builder
-  }
-
-  boolean(name: string): ColumnBuilder<BooleanColumn> {
-    const builder = new ColumnBuilder<BooleanColumn>('boolean', { name })
-    this.columnBuilders.push(builder)
-    return builder
-  }
-
-  custom<T extends Column = CustomColumn>(type: string, name: string): ColumnBuilder<T> {
-    const builder = new ColumnBuilder<T>(type, { name })
-    this.columnBuilders.push(builder)
-    return builder
-  }
-
-  // === Build Methods ===
-  buildColumns(tableId: TableId): Column[] {
-    return this.columnBuilders.map((builder, index) => 
-      builder.build(createColumnId(`${tableId}-col-${index}`), tableId, index)
-    )
-  }
-
-  build() {
-    return {
-      options: this.options,
-      renderers: this.renderers,
-      columnBuilders: this.columnBuilders
-    }
-  }
-
-  // === Complete Table Schema ===
-  schema() {
-    return {
-      options: this.options,
-      renderers: this.renderers,
-      buildTable: (tableId: TableId) => ({
-        options: this.options,
-        renderers: this.renderers,
-        columns: this.buildColumns(tableId)
-      })
-    }
+  // === Type-Safe Column Builders ===
+  buildColumns(
+    tableId: TableId,
+    specs: Array<{
+      type: string;
+      name: string;
+      config?: Record<string, unknown>;
+      width?: number;
+      required?: boolean;
+      readonly?: boolean;
+    }>,
+  ): Column[] {
+    return specs.map((spec, index) =>
+      this.createColumn(tableId, spec.type, spec.name, index, {
+        config: {
+          ...this.typeRegistry.getType(spec.type)?.defaultConfig,
+          ...spec.config,
+        },
+        width: spec.width,
+        required: spec.required,
+        readonly: spec.readonly,
+      }),
+    );
   }
 }
 
 // === Factory Functions ===
-export const table = (options?: Partial<TableOptions>) => new TableConfig(options)
+export const createTableConfig = (
+  options?: Partial<TableOptions>,
+): TableMasterConfig => new TableMasterConfig(options);
+
+// Backward compatibility
+export const table = createTableConfig;
 
 // === Configuration Presets ===
 export const presets = {
-  minimal: () => table({
-    showRowNumbers: false,
-    showSelectAll: false,
-    enableSelection: false,
-    density: 'compact',
-    striped: false
-  }),
+  minimal: () =>
+    createTableConfig({
+      showRowNumbers: false,
+      showSelectAll: false,
+      enableSelection: false,
+      showActionColumn: false,
+      density: "compact",
+      striped: false,
+    }),
 
-  spreadsheet: () => table({
-    showRowNumbers: true,
-    showSelectAll: true,
-    enableSelection: true,
-    density: 'compact',
-    columnSizing: 'auto',
-    striped: true
-  }),
+  spreadsheet: () =>
+    createTableConfig({
+      showRowNumbers: true,
+      showSelectAll: true,
+      enableSelection: true,
+      showActionColumn: true,
+      density: "compact",
+      columnSizing: "auto",
+      striped: true,
+    }),
 
-  readonly: () => table({
-    enableEditing: false,
-    enableSelection: false,
-    showSelectAll: false,
-    density: 'comfortable',
-    striped: true
-  })
-}
+  readonly: () =>
+    createTableConfig({
+      enableEditing: false,
+      enableSelection: false,
+      showSelectAll: false,
+      showActionColumn: false,
+      density: "comfortable",
+      striped: true,
+    }),
+
+  dashboard: () =>
+    createTableConfig({
+      showRowNumbers: false,
+      showSelectAll: false,
+      enableSelection: false,
+      showActionColumn: false,
+      density: "comfortable",
+      striped: true,
+      headerAlignment: "center",
+      cellAlignment: "center",
+    }),
+};
+
+// === Type-Safe Helpers ===
+export const defineColumnType = <T>(
+  definition: ColumnTypeDefinition<T>,
+): ColumnTypeDefinition<T> => definition;
+
+export const defineRenderer = <T>(
+  type: string,
+  component: React.ComponentType<CellRendererProps<T>>,
+  validate: (value: unknown) => T,
+  defaultValue: T,
+): ColumnRenderer<T> => ({
+  type,
+  component,
+  validate: (value, _column) => validate(value),
+  defaultValue,
+});

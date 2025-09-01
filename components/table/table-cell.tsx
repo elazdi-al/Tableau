@@ -1,45 +1,57 @@
-"use client"
+"use client";
 
-import { useState, useCallback } from 'react'
-import { Cell, Column, Row, ColumnRenderer } from '@/lib/types'
-import { getRenderer } from './renderers'
+import { useState, useCallback } from "react";
+import {
+  Cell,
+  Column,
+  Row,
+  ColumnRenderer,
+  TableConfiguration,
+} from "@/lib/types";
+import { getRenderer } from "./renderers";
 
 interface TableCellProps {
-  readonly cell: Cell | undefined
-  readonly column: Column
-  readonly row: Row
-  readonly onValueChange: (value: unknown) => void
-  readonly customRenderers?: Map<string, ColumnRenderer<unknown>>
+  readonly cell: Cell | undefined;
+  readonly column: Column;
+  readonly row: Row;
+  readonly onValueChange: (value: unknown) => void;
+  readonly customRenderers?: Map<string, ColumnRenderer<unknown>>;
+  readonly config?: TableConfiguration;
 }
 
-export function TableCell({ 
-  cell, 
-  column, 
-  row, 
+export function TableCell({
+  cell,
+  column,
+  row,
   onValueChange,
-  customRenderers 
+  customRenderers,
+  config,
 }: TableCellProps) {
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
 
-  const value = cell?.value ?? null
+  const value = cell?.value ?? null;
 
   const handleStartEdit = useCallback(() => {
     if (!column.readonly) {
-      setIsEditing(true)
+      setIsEditing(true);
     }
-  }, [column.readonly])
+  }, [column.readonly]);
 
   const handleEndEdit = useCallback(() => {
-    setIsEditing(false)
-  }, [])
+    setIsEditing(false);
+  }, []);
 
-  const handleValueChange = useCallback((newValue: unknown) => {
-    onValueChange(newValue)
-    setIsEditing(false)
-  }, [onValueChange])
+  const handleValueChange = useCallback(
+    (newValue: unknown) => {
+      onValueChange(newValue);
+      setIsEditing(false);
+    },
+    [onValueChange],
+  );
 
   // Get the appropriate renderer for this column type
-  const renderer = getRenderer(column.type, customRenderers)
+  const renderer = getRenderer(column.type, customRenderers);
+  const typeDefinition = config?.typeRegistry?.getType(column.type);
 
   if (!renderer) {
     // Fallback for unknown column types
@@ -47,7 +59,7 @@ export function TableCell({
       <div
         className={`
           relative h-10 bg-background transition-colors duration-200
-          ${row.selected ? 'bg-primary/3' : 'hover:bg-muted/20'}
+          ${row.selected ? "bg-primary/3" : "hover:bg-muted/20"}
         `}
         style={{ width: column.width }}
       >
@@ -57,17 +69,17 @@ export function TableCell({
           </span>
         </div>
       </div>
-    )
+    );
   }
 
-  const RendererComponent = renderer.component
+  const RendererComponent = renderer.component;
 
   return (
     <div
       className={`
         relative h-10 bg-background transition-colors duration-200
-        ${row.selected ? 'bg-primary/3' : 'hover:bg-muted/20'}
-        ${isEditing ? 'z-10' : 'z-0'}
+        ${row.selected ? "bg-primary/3" : "hover:bg-muted/20"}
+        ${isEditing ? "z-10" : "z-0"}
       `}
       style={{ width: column.width }}
       onClick={handleStartEdit}
@@ -76,9 +88,10 @@ export function TableCell({
       <div
         className={`
           h-full border-r border-b border-border transition-all duration-200
-          ${isEditing 
-            ? 'border-muted-foreground/20 bg-background/80 backdrop-blur-sm shadow-sm' 
-            : ''
+          ${
+            isEditing
+              ? "border-muted-foreground/20 bg-background/80 backdrop-blur-sm shadow-sm"
+              : ""
           }
         `}
       >
@@ -86,10 +99,20 @@ export function TableCell({
           value={value}
           onChange={handleValueChange}
           column={column}
+          typeDefinition={
+            typeDefinition || {
+              type: column.type,
+              category: "custom",
+              label: column.type,
+              defaultValue: null,
+              alignment: "left",
+              validate: (v) => v,
+            }
+          }
           readonly={column.readonly}
           editing={isEditing}
         />
       </div>
     </div>
-  )
+  );
 }
