@@ -31,10 +31,10 @@ export function TableHeader({
   };
   return (
     <>
-      <div className="flex border-b border-border bg-muted">
+      <div className="flex border-b border-border bg-muted rounded-t-lg">
         {/* Sticky row numbers/select all */}
         {showRowNumbers && (
-          <div className="sticky left-0 z-10 flex-shrink-0 bg-muted">
+          <div className="sticky left-0 z-10 flex-shrink-0 bg-muted rounded-tl-lg">
             {showSelectAll ? (
               <TableSelectAll />
             ) : (
@@ -76,7 +76,7 @@ export function TableHeader({
 
         {/* Sticky add column button */}
         {showActionColumn && (
-          <div className="sticky right-0 z-10 flex-shrink-0 bg-muted">
+          <div className="sticky right-0 z-10 flex-shrink-0 bg-muted rounded-tr-lg">
             <button
               onClick={() => setShowDialog(true)}
               className="h-10 w-12 border-l border-border flex items-center justify-center bg-muted hover:bg-primary/10 hover:border-primary/20 transition-all cursor-pointer group"

@@ -215,8 +215,8 @@ export function TableEditor({
 
   return (
     <div className={`w-full ${className}`} ref={containerRef}>
-      <div className="border border-border rounded-lg shadow-sm overflow-hidden relative">
-        <div className="overflow-x-auto overflow-y-visible">
+      <div className="border border-border rounded-lg shadow-sm relative overflow-hidden">
+        <div className="overflow-x-auto">
           <div className="min-w-fit relative">
             <TableHeader
               columns={columnsWithWidths}
@@ -243,6 +243,8 @@ export function TableEditor({
             </div>
           </div>
         </div>
+        {/* Overlay for dropdowns to escape the overflow */}
+        <div className="absolute inset-0 pointer-events-none overflow-visible z-20" />
       </div>
     </div>
   );

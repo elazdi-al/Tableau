@@ -78,7 +78,7 @@ export function TableCell({
       className={`
         relative h-10 bg-background transition-colors duration-200 w-full
         ${row.selected ? "bg-primary/5 border-primary/10" : "hover:bg-muted/30"}
-        ${isEditing ? "z-10 bg-background ring-2 ring-primary/20" : "z-0"}
+        ${isEditing ? "z-10 bg-background ring-1 ring-primary/40 ring-inset" : "z-0"}
       `}
       onClick={handleStartEdit}
     >
