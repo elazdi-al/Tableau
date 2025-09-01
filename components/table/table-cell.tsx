@@ -1,87 +1,95 @@
 "use client"
 
-import { useState, useCallback, useEffect } from 'react'
-import { ColumnType, Cell, Column, Row } from '@/lib/types'
+import { useState, useCallback } from 'react'
+import { Cell, Column, Row, ColumnRenderer } from '@/lib/types'
+import { getRenderer } from './renderers'
 
 interface TableCellProps {
   readonly cell: Cell | undefined
   readonly column: Column
   readonly row: Row
   readonly onValueChange: (value: unknown) => void
+  readonly customRenderers?: Map<string, ColumnRenderer<unknown>>
 }
 
-export function TableCell({ cell, column, row, onValueChange }: TableCellProps) {
+export function TableCell({ 
+  cell, 
+  column, 
+  row, 
+  onValueChange,
+  customRenderers 
+}: TableCellProps) {
   const [isEditing, setIsEditing] = useState(false)
-  const [editValue, setEditValue] = useState<string>('')
 
-  const value = cell?.value ?? ''
-  const displayValue = String(value)
-
-  useEffect(() => {
-    setEditValue(displayValue)
-  }, [displayValue])
-
-  const handleSave = useCallback(() => {
-    const processedValue = column.type === 'number' ? 
-      (editValue === '' ? null : Number(editValue)) : 
-      editValue
-    
-    onValueChange(processedValue)
-    setIsEditing(false)
-  }, [editValue, column.type, onValueChange])
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      handleSave()
-    } else if (e.key === 'Escape') {
-      setEditValue(displayValue)
-      setIsEditing(false)
-    }
-  }, [handleSave, displayValue])
+  const value = cell?.value ?? null
 
   const handleStartEdit = useCallback(() => {
-    setIsEditing(true)
-    setEditValue(displayValue)
-  }, [displayValue])
+    if (!column.readonly) {
+      setIsEditing(true)
+    }
+  }, [column.readonly])
 
-  const renderInput = () => (
-    <input
-      type={column.type === 'number' ? 'number' : 'text'}
-      value={editValue}
-      onChange={(e) => setEditValue(e.target.value)}
-      onBlur={handleSave}
-      onKeyDown={handleKeyDown}
-      className="w-full h-full bg-transparent border-none outline-none px-3 py-2 text-sm"
-      autoFocus
-      placeholder={column.isRequired ? `${column.name} (required)` : undefined}
-    />
-  )
+  const handleEndEdit = useCallback(() => {
+    setIsEditing(false)
+  }, [])
 
-  const renderDisplay = () => (
-    <div
-      className="w-full h-full px-3 py-2 cursor-text flex items-center text-sm"
-      onClick={handleStartEdit}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && handleStartEdit()}
-    >
-      <span className={`truncate ${!value ? 'text-muted-foreground italic' : ''}`}>
-        {displayValue || 'Empty'}
-      </span>
-    </div>
-  )
+  const handleValueChange = useCallback((newValue: unknown) => {
+    onValueChange(newValue)
+    setIsEditing(false)
+  }, [onValueChange])
+
+  // Get the appropriate renderer for this column type
+  const renderer = getRenderer(column.type, customRenderers)
+
+  if (!renderer) {
+    // Fallback for unknown column types
+    return (
+      <div
+        className={`
+          relative h-10 bg-background transition-colors duration-200
+          ${row.selected ? 'bg-primary/3' : 'hover:bg-muted/20'}
+        `}
+        style={{ width: column.width }}
+      >
+        <div className="h-full border-r border-b border-border flex items-center px-3 py-2 text-sm">
+          <span className="text-muted-foreground italic">
+            Unknown type: {column.type}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  const RendererComponent = renderer.component
 
   return (
     <div
       className={`
-        h-10 border-r border-b border-border bg-background transition-colors
-        ${row.isSelected ? 'bg-primary/5' : 'hover:bg-muted/30'}
-        ${isEditing ? 'ring-1 ring-primary/50' : ''}
+        relative h-10 bg-background transition-colors duration-200
+        ${row.selected ? 'bg-primary/3' : 'hover:bg-muted/20'}
+        ${isEditing ? 'z-10' : 'z-0'}
       `}
       style={{ width: column.width }}
+      onClick={handleStartEdit}
     >
-      {isEditing ? renderInput() : renderDisplay()}
+      {/* Cell content */}
+      <div
+        className={`
+          h-full border-r border-b border-border transition-all duration-200
+          ${isEditing 
+            ? 'border-muted-foreground/20 bg-background/80 backdrop-blur-sm shadow-sm' 
+            : ''
+          }
+        `}
+      >
+        <RendererComponent
+          value={value}
+          onChange={handleValueChange}
+          column={column}
+          readonly={column.readonly}
+          editing={isEditing}
+        />
+      </div>
     </div>
   )
 }

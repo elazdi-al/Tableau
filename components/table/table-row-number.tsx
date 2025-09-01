@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from 'react'
+import { Check } from '@phosphor-icons/react'
 import { Row } from '@/lib/types'
 import { useDatabase } from '@/lib/db'
 
@@ -10,29 +12,58 @@ interface TableRowNumberProps {
 }
 
 export function TableRowNumber({ row, index, className = "" }: TableRowNumberProps) {
-  const { toggleRowSelection } = useDatabase()
+  const { toggleRowSelection, options } = useDatabase()
+  const [isHovered, setIsHovered] = useState(false)
+  
+  const showCheckmark = isHovered || row.selected
 
   return (
     <div 
       className={`
-        flex items-center justify-center h-10 w-12 border-r border-b border-border 
-        bg-muted/30 text-sm text-muted-foreground cursor-pointer
-        hover:bg-muted/50 transition-colors
-        ${row.isSelected ? 'bg-primary/10 border-primary/20' : ''}
+        group relative flex items-center justify-center h-10 w-12 border-r border-b border-border 
+        text-sm text-muted-foreground cursor-pointer transition-all duration-200
+        ${row.selected 
+          ? 'bg-primary/6 border-primary/10 text-primary' 
+          : 'bg-muted/15 hover:bg-muted/30'
+        }
         ${className}
       `}
-      onClick={() => toggleRowSelection(row.id)}
+      onClick={() => options.enableSelection && toggleRowSelection(row.id)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex items-center space-x-1">
-        <input
-          type="checkbox"
-          checked={row.isSelected}
-          onChange={() => {}} // Handled by onClick
-          className="w-3 h-3 accent-foreground"
-          aria-label={`Select row ${index + 1}`}
-        />
-        <span className="text-xs font-mono">{index + 1}</span>
-      </div>
+      {/* Row Number - shows when not hovering/selected */}
+      <span 
+        className={`
+          absolute text-xs font-mono transition-all duration-200
+          ${showCheckmark && options.enableSelection ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}
+        `}
+      >
+        {index + 1}
+      </span>
+      
+      {/* Checkmark - shows on hover/selection */}
+      {options.enableSelection && (
+        <div 
+          className={`
+            absolute inset-0 flex items-center justify-center transition-all duration-200
+            ${showCheckmark ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}
+          `}
+        >
+          <Check 
+            size={16} 
+            weight={row.selected ? "bold" : "regular"}
+            className={`
+              transition-colors duration-200
+              ${row.selected ? 'text-primary' : 'text-muted-foreground/50'}
+            `}
+          />
+        </div>
+      )}
+      
+      <span className="sr-only">
+        {options.enableSelection ? `Select row ${index + 1}` : `Row ${index + 1}`}
+      </span>
     </div>
   )
 }

@@ -2,14 +2,16 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { devtools } from 'zustand/middleware'
 import { enableMapSet } from 'immer'
-
-// Enable Map/Set support in Immer
-enableMapSet()
 import {
   Table, Column, Row, Cell, TableSelection, TableOptions,
   TableId, ColumnId, RowId, CellId,
-  createTableId, createColumnId, createRowId, createCellId
+  createTableId, createColumnId, createRowId, createCellId,
+  validateColumn, validateTable
 } from './types'
+import { validateCellValue } from '@/components/table/renderers'
+
+// Enable Map/Set support in Immer
+enableMapSet()
 
 interface DatabaseState {
   // Data
@@ -25,9 +27,10 @@ interface DatabaseState {
   // Core Actions
   readonly addTable: (table: Omit<Table, 'id' | 'createdAt' | 'updatedAt'>) => TableId
   readonly addColumn: (column: Omit<Column, 'id'>) => ColumnId
-  readonly addRow: (row: Omit<Row, 'id' | 'createdAt' | 'isSelected'>) => RowId
+  readonly addRow: (row: Omit<Row, 'id' | 'createdAt' | 'selected'>) => RowId
   readonly updateCell: (cellId: CellId, value: unknown) => void
   readonly createCell: (rowId: RowId, columnId: ColumnId, value: unknown) => CellId
+  readonly setOptions: (options: Partial<TableOptions>) => void
   
   // Selection Actions
   readonly toggleRowSelection: (rowId: RowId) => void
@@ -39,6 +42,11 @@ interface DatabaseState {
   readonly getTableRows: (tableId: TableId) => Row[]
   readonly getCell: (rowId: RowId, columnId: ColumnId) => Cell | undefined
   readonly getCellValue: (rowId: RowId, columnId: ColumnId) => unknown
+  readonly getTable: (tableId: TableId) => Table | undefined
+  
+  // Bulk Operations
+  readonly addColumns: (columns: Omit<Column, 'id'>[]) => ColumnId[]
+  readonly addRows: (rows: Omit<Row, 'id' | 'createdAt' | 'selected'>[]) => RowId[]
 }
 
 export const useDatabase = create<DatabaseState>()(
@@ -61,6 +69,11 @@ export const useDatabase = create<DatabaseState>()(
         showSelectAll: true,
         enableSelection: true,
         enableEditing: true,
+        columnSizing: 'balanced',
+        minColumnWidth: 80,
+        maxColumnWidth: 400,
+        density: 'normal',
+        striped: false,
       },
       
       addTable: (tableData) => {
@@ -68,12 +81,13 @@ export const useDatabase = create<DatabaseState>()(
         const now = new Date()
         
         set((state) => {
-          state.tables.set(id, {
+          const table = validateTable({
             id,
             ...tableData,
             createdAt: now,
             updatedAt: now,
           })
+          state.tables.set(id, table)
         })
         
         return id
@@ -83,10 +97,26 @@ export const useDatabase = create<DatabaseState>()(
         const id = createColumnId(`col-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
         
         set((state) => {
-          state.columns.set(id, { id, ...columnData })
+          const column = validateColumn({ id, ...columnData })
+          state.columns.set(id, column)
         })
         
         return id
+      },
+      
+      addColumns: (columnsData) => {
+        const ids: ColumnId[] = []
+        
+        set((state) => {
+          columnsData.forEach(columnData => {
+            const id = createColumnId(`col-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
+            const column = validateColumn({ id, ...columnData })
+            state.columns.set(id, column)
+            ids.push(id)
+          })
+        })
+        
+        return ids
       },
       
       addRow: (rowData) => {
@@ -97,7 +127,7 @@ export const useDatabase = create<DatabaseState>()(
           state.rows.set(id, {
             id,
             ...rowData,
-            isSelected: false,
+            selected: false,
             createdAt: now,
           })
         })
@@ -105,8 +135,28 @@ export const useDatabase = create<DatabaseState>()(
         return id
       },
       
+      addRows: (rowsData) => {
+        const ids: RowId[] = []
+        const now = new Date()
+        
+        set((state) => {
+          rowsData.forEach(rowData => {
+            const id = createRowId(`row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
+            state.rows.set(id, {
+              id,
+              ...rowData,
+              selected: false,
+              createdAt: now,
+            })
+            ids.push(id)
+          })
+        })
+        
+        return ids
+      },
+      
       createCell: (rowId, columnId, value) => {
-        const id = createCellId(`${rowId.value}-${columnId.value}`)
+        const id = createCellId(`${rowId}-${columnId}`)
         const now = new Date()
         
         set((state) => {
@@ -114,7 +164,7 @@ export const useDatabase = create<DatabaseState>()(
             id,
             rowId,
             columnId,
-            value,
+            value: value, // Store raw value, validation will be handled by renderers
             updatedAt: now,
           })
         })
@@ -128,10 +178,16 @@ export const useDatabase = create<DatabaseState>()(
           if (cell) {
             state.cells.set(cellId, {
               ...cell,
-              value,
+              value: value, // Store raw value, validation will be handled by renderers
               updatedAt: new Date(),
             })
           }
+        })
+      },
+      
+      setOptions: (newOptions) => {
+        set((state) => {
+          state.options = { ...state.options, ...newOptions }
         })
       },
       
@@ -139,8 +195,8 @@ export const useDatabase = create<DatabaseState>()(
         set((state) => {
           const row = state.rows.get(rowId)
           if (row) {
-            const newSelected = !row.isSelected
-            state.rows.set(rowId, { ...row, isSelected: newSelected })
+            const newSelected = !row.selected
+            state.rows.set(rowId, { ...row, selected: newSelected })
             
             if (newSelected) {
               state.selection.selectedRows.add(rowId)
@@ -160,13 +216,13 @@ export const useDatabase = create<DatabaseState>()(
           if (!allSelected) {
             // Select all rows
             for (const [rowId, row] of state.rows) {
-              state.rows.set(rowId, { ...row, isSelected: true })
+              state.rows.set(rowId, { ...row, selected: true })
               state.selection.selectedRows.add(rowId)
             }
           } else {
             // Deselect all rows
             for (const [rowId, row] of state.rows) {
-              state.rows.set(rowId, { ...row, isSelected: false })
+              state.rows.set(rowId, { ...row, selected: false })
             }
             state.selection.selectedRows.clear()
           }
@@ -181,7 +237,7 @@ export const useDatabase = create<DatabaseState>()(
           state.selection.isAllSelected = false
           
           for (const [rowId, row] of state.rows) {
-            state.rows.set(rowId, { ...row, isSelected: false })
+            state.rows.set(rowId, { ...row, selected: false })
           }
         })
       },
@@ -189,21 +245,21 @@ export const useDatabase = create<DatabaseState>()(
       getTableColumns: (tableId) => {
         const { columns } = get()
         return Array.from(columns.values())
-          .filter(col => col.tableId.value === tableId.value)
+          .filter(col => col.tableId === tableId)
           .sort((a, b) => a.position - b.position)
       },
       
       getTableRows: (tableId) => {
         const { rows } = get()
         return Array.from(rows.values())
-          .filter(row => row.tableId.value === tableId.value)
+          .filter(row => row.tableId === tableId)
           .sort((a, b) => a.position - b.position)
       },
       
       getCell: (rowId, columnId) => {
         const { cells } = get()
         return Array.from(cells.values()).find(
-          cell => cell.rowId.value === rowId.value && cell.columnId.value === columnId.value
+          cell => cell.rowId === rowId && cell.columnId === columnId
         )
       },
       
@@ -211,56 +267,69 @@ export const useDatabase = create<DatabaseState>()(
         const cell = get().getCell(rowId, columnId)
         return cell?.value
       },
+      
+      getTable: (tableId) => {
+        return get().tables.get(tableId)
+      },
     })),
     { name: 'tableau-db' }
   )
 )
 
-// Initialize with sample data
+// Initialize with sample data using custom column types
 export const initializeSampleData = () => {
   const store = useDatabase.getState()
   
   const tableId = store.addTable({ name: 'Sample Table' })
   
-  const nameColId = store.addColumn({ 
-    tableId, 
-    name: 'Name', 
-    type: 'text', 
-    width: 200, 
-    position: 0, 
-    isRequired: false 
-  })
+  // Add columns as custom types (no built-in types exist)
+  const columns = [
+    {
+      tableId, 
+      name: 'Name', 
+      type: 'custom-text', 
+      width: 200, 
+      position: 0, 
+      required: false,
+      readonly: false,
+      config: { placeholder: 'Enter name...' }
+    },
+    {
+      tableId, 
+      name: 'Age', 
+      type: 'custom-number', 
+      width: 100, 
+      position: 1, 
+      required: false,
+      readonly: false,
+      config: { min: 0, max: 120, format: 'decimal' }
+    },
+    {
+      tableId, 
+      name: 'Status', 
+      type: 'custom-text', 
+      width: 150, 
+      position: 2, 
+      required: false,
+      readonly: false,
+      config: { placeholder: 'Enter status...' }
+    }
+  ]
   
-  const ageColId = store.addColumn({ 
-    tableId, 
-    name: 'Age', 
-    type: 'number', 
-    width: 100, 
-    position: 1, 
-    isRequired: false 
-  })
-  
-  const emailColId = store.addColumn({ 
-    tableId, 
-    name: 'Email', 
-    type: 'text', 
-    width: 250, 
-    position: 2, 
-    isRequired: false 
-  })
+  const columnIds = store.addColumns(columns)
   
   const sampleData = [
-    ['Alice Johnson', 28, 'alice@example.com'],
-    ['Bob Smith', 34, 'bob@example.com'],
-    ['Carol Davis', 25, 'carol@example.com']
+    ['Alice Johnson', 28, 'Active'],
+    ['Bob Smith', 34, 'Inactive'], 
+    ['Carol Davis', 25, 'Pending']
   ]
   
   sampleData.forEach((rowData, index) => {
     const rowId = store.addRow({ tableId, position: index })
     
-    store.createCell(rowId, nameColId, rowData[0])
-    store.createCell(rowId, ageColId, rowData[1])
-    store.createCell(rowId, emailColId, rowData[2])
+    columnIds.forEach((colId, colIndex) => {
+      store.createCell(rowId, colId, rowData[colIndex])
+    })
   })
   
   return tableId

@@ -10,9 +10,10 @@ interface TableRowProps {
   readonly columns: Column[]
   readonly index: number
   readonly showRowNumbers?: boolean
+  readonly customRenderers?: Map<string, import('@/lib/types').ColumnRenderer>
 }
 
-export function TableRow({ row, columns, index, showRowNumbers = true }: TableRowProps) {
+export function TableRow({ row, columns, index, showRowNumbers = true, customRenderers }: TableRowProps) {
   const { getCell, updateCell, createCell } = useDatabase()
 
   const handleCellChange = (columnId: Column['id'], value: unknown) => {
@@ -36,11 +37,12 @@ export function TableRow({ row, columns, index, showRowNumbers = true }: TableRo
         
         return (
           <TableCell
-            key={`${row.id.value}-${column.id.value}`}
+            key={`${row.id}-${column.id}`}
             cell={cell}
             column={column}
             row={row}
             onValueChange={(value) => handleCellChange(column.id, value)}
+            customRenderers={customRenderers}
           />
         )
       })}

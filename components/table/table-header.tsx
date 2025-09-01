@@ -23,7 +23,7 @@ export function TableHeader({
       
       {columns.map((column) => (
         <div
-          key={column.id.value}
+          key={column.id}
           className="h-10 border-r border-border flex items-center px-3 font-medium text-sm bg-muted/50"
           style={{ width: column.width }}
         >
