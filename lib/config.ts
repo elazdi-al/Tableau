@@ -17,6 +17,7 @@ import {
   createColumnId,
   CellRendererProps,
 } from "./types";
+import { TextT, Hash, ToggleLeft, Calendar, ListBullets } from "@phosphor-icons/react";
 
 // === Built-in Column Type Definitions ===
 export const createTextType = (): ColumnTypeDefinition<string> => ({
@@ -29,6 +30,7 @@ export const createTextType = (): ColumnTypeDefinition<string> => ({
   headerAlignment: "left",
   validate: (value: unknown) => String(value || ""),
   format: (value: string) => value,
+  icon: TextT,
   configSchema: z.object({
     placeholder: z.string().optional(),
     maxLength: z.number().optional(),
@@ -52,7 +54,8 @@ export const createNumberType = (): ColumnTypeDefinition<number> => ({
     const num = parseFloat(String(value));
     return isNaN(num) ? 0 : num;
   },
-  format: (value: number) => value.toLocaleString(),
+  format: (value: number) => (value ?? 0).toLocaleString(),
+  icon: Hash,
   configSchema: z.object({
     min: z.number().optional(),
     max: z.number().optional(),
@@ -76,6 +79,7 @@ export const createBooleanType = (): ColumnTypeDefinition<boolean> => ({
   headerAlignment: "center",
   validate: (value: unknown) => Boolean(value),
   format: (value: boolean) => (value ? "Yes" : "No"),
+  icon: ToggleLeft,
   configSchema: z.object({
     trueLabel: z.string().default("Yes"),
     falseLabel: z.string().default("No"),
@@ -100,6 +104,7 @@ export const createDateType = (): ColumnTypeDefinition<Date> => ({
     return isNaN(date.getTime()) ? new Date() : date;
   },
   format: (value: Date) => value.toLocaleDateString(),
+  icon: Calendar,
   configSchema: z.object({
     format: z.enum(["date", "datetime", "time"]).default("date"),
     min: z.string().optional(),
@@ -123,6 +128,7 @@ export const createSelectType = (): ColumnTypeDefinition<
   validate: (value: unknown) => String(value || ""),
   format: (value: string | string[]) =>
     Array.isArray(value) ? value.join(", ") : String(value),
+  icon: ListBullets,
   configSchema: z.object({
     options: z
       .array(

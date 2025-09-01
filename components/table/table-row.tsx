@@ -50,72 +50,82 @@ export function TableRow({
   };
 
   return (
-    <div className="flex">
-      {showRowNumbers && <TableRowNumber row={row} index={index} />}
+    <div className="flex border-b border-border last:border-b-0" data-row-id={row.id}>
+      {/* Sticky row number */}
+      {showRowNumbers && (
+        <div className="sticky left-0 z-10 flex-shrink-0 bg-background">
+          <TableRowNumber row={row} index={index} />
+        </div>
+      )}
 
-      {columns.map((column) => {
-        const cell = getCell(row.id, column.id);
+      {/* Scrollable cells */}
+      <div className="flex flex-1 min-w-0">
+        {columns.map((column, index) => {
+          const cell = getCell(row.id, column.id);
+          const isLastColumn = index === columns.length - 1;
 
-        return (
-          <TableCell
-            key={`${row.id}-${column.id}`}
-            cell={cell}
-            column={column}
-            row={row}
-            onValueChange={(value) => handleCellChange(column.id, value)}
-            customRenderers={config?.renderers || customRenderers}
-            config={config}
-          />
-        );
-      })}
+          return (
+            <div
+              key={`${row.id}-${column.id}`}
+              className={`flex-1 min-w-[120px] ${!isLastColumn ? 'border-r border-border' : ''}`}
+              style={{ minWidth: Math.max(column.width || 120, 120) }}
+            >
+              <TableCell
+                cell={cell}
+                column={column}
+                row={row}
+                onValueChange={(value) => handleCellChange(column.id, value)}
+                customRenderers={config?.renderers || customRenderers}
+                config={config}
+              />
+            </div>
+          );
+        })}
+      </div>
 
+      {/* Sticky action column */}
       {showActionColumn && (
-        <div className="relative ml-auto">
-          <div className="h-10 w-16 border-l-2 border-border flex items-center justify-center bg-background group hover:bg-muted/30 transition-colors">
+        <div className="sticky right-0 z-10 flex-shrink-0 bg-background">
+          <div className="h-10 w-12 border-l border-border flex items-center justify-center bg-background group hover:bg-muted/40 transition-colors relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-2 hover:bg-muted rounded"
+              className="opacity-100 transition-all duration-200 p-1.5 hover:bg-muted/60 rounded"
             >
               <DotsThree
-                size={14}
+                size={16}
                 weight="bold"
-                className="text-muted-foreground/60 hover:text-foreground transition-colors duration-200"
+                className="text-muted-foreground hover:text-foreground transition-colors duration-200"
               />
             </button>
           </div>
 
           {showMenu && (
-            <div className="absolute top-full right-0 z-[9999] mt-1 bg-background border border-border rounded-md shadow-lg min-w-[120px]">
-              <div className="py-1">
-                <button
-                  onClick={() => handleRowAction("duplicate")}
-                  className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted/80 transition-colors"
-                >
-                  Duplicate
-                </button>
-                <button
-                  onClick={() => handleRowAction("delete")}
-                  className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors"
-                >
-                  Delete
-                </button>
-                <div className="h-px bg-border my-1" />
-                <button
-                  onClick={() => setShowMenu(false)}
-                  className="w-full px-3 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted/80 transition-colors"
-                >
-                  Cancel
-                </button>
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-[9998]"
+                onClick={() => setShowMenu(false)}
+              />
+              {/* Menu */}
+              <div className="absolute top-full right-0 z-[9999] mt-1 bg-background border border-border rounded-md shadow-xl min-w-[130px] transform -translate-x-full">
+                <div className="py-1">
+                  <button
+                    onClick={() => handleRowAction("duplicate")}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-muted/60 transition-colors font-medium"
+                  >
+                    Duplicate Row
+                  </button>
+                  <button
+                    onClick={() => handleRowAction("delete")}
+                    className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors font-medium"
+                  >
+                    Delete Row
+                  </button>
+                </div>
               </div>
-            </div>
+            </>
           )}
 
-          {showMenu && (
-            <div
-              className="fixed inset-0 z-[9998]"
-              onClick={() => setShowMenu(false)}
-            />
-          )}
         </div>
       )}
     </div>

@@ -20,11 +20,11 @@ export function TableRowNumber({ row, index, className = "" }: TableRowNumberPro
   return (
     <div 
       className={`
-        group relative flex items-center justify-center h-10 w-12 border-r border-b border-border 
+        group relative flex items-center justify-center h-10 w-12 border-r border-border 
         text-sm text-muted-foreground cursor-pointer transition-all duration-200
         ${row.selected 
-          ? 'bg-primary/6 border-primary/10 text-primary' 
-          : 'bg-muted/15 hover:bg-muted/30'
+          ? 'bg-primary/8 text-primary' 
+          : 'bg-muted/30 hover:bg-muted/50'
         }
         ${className}
       `}

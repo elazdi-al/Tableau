@@ -58,12 +58,11 @@ export function TableCell({
     return (
       <div
         className={`
-          relative h-10 bg-background transition-colors duration-200
+          relative h-10 bg-background transition-colors duration-200 w-full
           ${row.selected ? "bg-primary/3" : "hover:bg-muted/20"}
         `}
-        style={{ width: column.width }}
       >
-        <div className="h-full border-r border-b border-border flex items-center px-3 py-2 text-sm">
+        <div className="h-full flex items-center px-3 py-2 text-sm">
           <span className="text-muted-foreground italic">
             Unknown type: {column.type}
           </span>
@@ -77,24 +76,14 @@ export function TableCell({
   return (
     <div
       className={`
-        relative h-10 bg-background transition-colors duration-200
-        ${row.selected ? "bg-primary/3" : "hover:bg-muted/20"}
-        ${isEditing ? "z-10" : "z-0"}
+        relative h-10 bg-background transition-colors duration-200 w-full
+        ${row.selected ? "bg-primary/5 border-primary/10" : "hover:bg-muted/30"}
+        ${isEditing ? "z-10 bg-background ring-2 ring-primary/20" : "z-0"}
       `}
-      style={{ width: column.width }}
       onClick={handleStartEdit}
     >
       {/* Cell content */}
-      <div
-        className={`
-          h-full border-r border-b border-border transition-all duration-200
-          ${
-            isEditing
-              ? "border-muted-foreground/20 bg-background/80 backdrop-blur-sm shadow-sm"
-              : ""
-          }
-        `}
-      >
+      <div className="h-full">
         <RendererComponent
           value={value}
           onChange={handleValueChange}

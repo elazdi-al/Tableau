@@ -20,7 +20,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="fixed bottom-4 right-4 w-6 h-6 rounded-full transition-none"
+      className="fixed bottom-4 right-4 size-4 rounded-full transition-none"
       style={{
         backgroundColor: theme === "dark" ? "#ffffff" : "#2f2f2f",
       }}

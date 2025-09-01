@@ -163,8 +163,10 @@ export default function Home() {
       </div>
 
       <div className="w-full max-w-4xl">
-        <div className="h-px bg-border mb-16" />
-        <TableEditor config={tableConfig} />
+        <div className="h-4 border-t border-dashed border-border mb-16" />
+        <div className="overflow-visible">
+          <TableEditor config={tableConfig} />
+        </div>
       </div>
 
       <ThemeToggle />

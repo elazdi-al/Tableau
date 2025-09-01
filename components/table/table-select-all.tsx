@@ -16,12 +16,12 @@ export function TableSelectAll({ className = "" }: TableSelectAllProps) {
   return (
     <div
       className={`
-        group flex items-center justify-center h-10 w-12 border-r border-b-2 border-border
+        group flex items-center justify-center h-10 w-12 border-r border-border
         cursor-pointer transition-all duration-200
         ${
           selection.isAllSelected || hasPartialSelection
-            ? "bg-primary/6 border-primary/10 hover:bg-primary/10"
-            : "bg-muted/20 hover:bg-muted/40"
+            ? "bg-primary/8 hover:bg-primary/12"
+            : "bg-muted/30 hover:bg-muted/50"
         }
         ${className}
       `}

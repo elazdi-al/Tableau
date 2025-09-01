@@ -28,8 +28,8 @@ export function calculateColumnWidths(
   } = config;
 
   // Account for row numbers column and action column
-  const rowNumbersWidth = showRowNumbers ? 48 : 0;
-  const actionColumnWidth = showActionColumn ? 64 : 0; // w-16 = 64px
+  const rowNumbersWidth = showRowNumbers ? 48 : 0; // w-12 = 48px
+  const actionColumnWidth = showActionColumn ? 48 : 0; // w-12 = 48px
   const availableWidth = containerWidth - rowNumbersWidth - actionColumnWidth;
   const totalColumns = columnsData.length;
 

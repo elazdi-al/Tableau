@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Column, TableConfiguration } from "@/lib/types";
 import { TableSelectAll } from "./table-select-all";
+import { AddColumnDialog } from "./add-column-dialog";
 import { PlusIcon } from "@phosphor-icons/react";
 
 interface TableHeaderProps {
@@ -10,7 +11,7 @@ interface TableHeaderProps {
   readonly showRowNumbers?: boolean;
   readonly showSelectAll?: boolean;
   readonly showActionColumn?: boolean;
-  readonly onAddColumn?: (type: string) => void;
+  readonly onAddColumn?: (type: string, name: string, config?: Record<string, unknown>) => void;
   readonly config?: TableConfiguration;
 }
 
@@ -22,91 +23,82 @@ export function TableHeader({
   onAddColumn,
   config,
 }: TableHeaderProps) {
-  const [showMenu, setShowMenu] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
 
-  const handleAddColumn = (type: string) => {
-    onAddColumn?.(type);
-    setShowMenu(false);
+  const handleAddColumn = (type: string, name: string, columnConfig?: Record<string, unknown>) => {
+    onAddColumn?.(type, name, columnConfig);
+    setShowDialog(false);
   };
-
-  const availableTypes = config?.getAvailableTypes() || [];
   return (
-    <div className="flex border-b-2 border-border bg-muted/30">
-      <div className="flex flex-1">
-        {showRowNumbers && showSelectAll && <TableSelectAll />}
-        {showRowNumbers && !showSelectAll && (
-          <div className="h-10 w-12 border-r border-b-2 border-border bg-muted/50" />
+    <>
+      <div className="flex border-b border-border bg-muted">
+        {/* Sticky row numbers/select all */}
+        {showRowNumbers && (
+          <div className="sticky left-0 z-10 flex-shrink-0 bg-muted">
+            {showSelectAll ? (
+              <TableSelectAll />
+            ) : (
+              <div className="h-10 w-12 border-r border-border bg-muted" />
+            )}
+          </div>
         )}
 
-        {columns.map((column) => {
-          const headerAlignment =
-            config?.getHeaderAlignment(column.type) || "left";
-          return (
-            <div
-              key={column.id}
-              className="h-10 border-r border-border flex items-center px-3 font-medium text-sm bg-muted/50"
-              style={{ width: column.width }}
+        {/* Scrollable columns */}
+        <div className="flex flex-1 min-w-0">
+          {columns.map((column, index) => {
+            const headerAlignment =
+              config?.getHeaderAlignment(column.type) || "left";
+            const typeDef = config?.typeRegistry?.getType(column.type);
+            const isLastColumn = index === columns.length - 1;
+            return (
+              <div
+                key={column.id}
+                className={`h-10 flex items-center px-3 font-medium text-sm bg-muted/30 hover:bg-muted/40 transition-colors flex-1 min-w-[120px] ${
+                  !isLastColumn ? 'border-r border-border' : ''
+                }`}
+                style={{ minWidth: Math.max(column.width || 120, 120) }}
+              >
+                <div className={`flex items-center gap-2 truncate w-full justify-${headerAlignment}`}>
+                  {typeDef?.icon && (
+                    <typeDef.icon
+                      size={14}
+                      className="text-muted-foreground/70 flex-shrink-0"
+                    />
+                  )}
+                  <span className="truncate font-medium">
+                    {column.name}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Sticky add column button */}
+        {showActionColumn && (
+          <div className="sticky right-0 z-10 flex-shrink-0 bg-muted">
+            <button
+              onClick={() => setShowDialog(true)}
+              className="h-10 w-12 border-l border-border flex items-center justify-center bg-muted hover:bg-primary/10 hover:border-primary/20 transition-all cursor-pointer group"
             >
-              <span className={`truncate w-full text-${headerAlignment}`}>
-                {column.name}
-              </span>
-            </div>
-          );
-        })}
+              <PlusIcon
+                size={16}
+                weight="bold"
+                className="text-muted-foreground group-hover:text-primary transition-colors duration-200"
+              />
+            </button>
+          </div>
+        )}
       </div>
 
-      {showActionColumn && (
-        <div className="relative flex-shrink-0">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="h-10 w-16 border-l border-border flex items-center justify-center bg-muted/30 group hover:bg-muted/60 transition-colors cursor-pointer"
-          >
-            <PlusIcon
-              size={14}
-              weight="bold"
-              className="text-muted-foreground/60 group-hover:text-foreground transition-colors duration-200"
-            />
-          </button>
-
-          {showMenu && (
-            <div className="absolute top-full right-0 z-[9999] mt-1 bg-background border border-border rounded-md shadow-lg min-w-[120px]">
-              <div className="py-1">
-                {availableTypes.map((typeDef) => (
-                  <button
-                    key={typeDef.type}
-                    onClick={() => handleAddColumn(typeDef.type)}
-                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-muted/80 transition-colors flex items-center gap-2"
-                  >
-                    {typeDef.icon && (
-                      <typeDef.icon
-                        size={14}
-                        className="text-muted-foreground"
-                      />
-                    )}
-                    <span>{typeDef.label}</span>
-                  </button>
-                ))}
-                {availableTypes.length > 0 && (
-                  <div className="h-px bg-border my-1" />
-                )}
-                <button
-                  onClick={() => setShowMenu(false)}
-                  className="w-full px-3 py-1.5 text-left text-sm text-muted-foreground hover:bg-muted/80 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {showMenu && (
-            <div
-              className="fixed inset-0 z-[9998]"
-              onClick={() => setShowMenu(false)}
-            />
-          )}
-        </div>
+      {config && (
+        <AddColumnDialog
+          isOpen={showDialog}
+          onClose={() => setShowDialog(false)}
+          onAddColumn={handleAddColumn}
+          config={config}
+        />
       )}
-    </div>
+    </>
   );
 }

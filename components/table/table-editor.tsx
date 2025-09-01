@@ -95,7 +95,7 @@ export function TableEditor({
   };
 
   // Action handlers
-  const handleAddColumn = (type: string) => {
+  const handleAddColumn = (type: string, name: string, columnConfig?: Record<string, unknown>) => {
     if (!currentTableId) return;
 
     const columns = getTableColumns(currentTableId);
@@ -103,17 +103,16 @@ export function TableEditor({
       columns.length > 0 ? Math.max(...columns.map((c) => c.position)) : -1;
 
     const typeDef = activeConfig.typeRegistry?.getType(type);
-    const defaultValue = activeConfig.getDefaultValue(type);
 
     addColumn({
       tableId: currentTableId,
-      name: `New ${typeDef?.label || type} Column`,
+      name: name,
       type: type,
       width: 200,
       position: maxPosition + 1,
       required: false,
       readonly: false,
-      config: typeDef?.defaultConfig || {},
+      config: { ...typeDef?.defaultConfig, ...columnConfig },
       alignment: activeConfig.getAlignment(type),
       headerAlignment: activeConfig.getHeaderAlignment(type),
     });
@@ -216,29 +215,33 @@ export function TableEditor({
 
   return (
     <div className={`w-full ${className}`} ref={containerRef}>
-      <div className="border border-border rounded-lg shadow-sm relative">
-        <TableHeader
-          columns={columnsWithWidths}
-          showRowNumbers={tableOptions.showRowNumbers}
-          showSelectAll={tableOptions.showSelectAll}
-          showActionColumn={tableOptions.showActionColumn}
-          onAddColumn={handleAddColumn}
-          config={activeConfig}
-        />
-        <div className="bg-background">
-          {rows.map((row, index) => (
-            <TableRow
-              key={row.id}
-              row={row}
+      <div className="border border-border rounded-lg shadow-sm overflow-hidden relative">
+        <div className="overflow-x-auto overflow-y-visible">
+          <div className="min-w-fit relative">
+            <TableHeader
               columns={columnsWithWidths}
-              index={index}
               showRowNumbers={tableOptions.showRowNumbers}
+              showSelectAll={tableOptions.showSelectAll}
               showActionColumn={tableOptions.showActionColumn}
-              customRenderers={activeConfig.renderers}
-              onRowAction={handleRowAction}
+              onAddColumn={handleAddColumn}
               config={activeConfig}
             />
-          ))}
+            <div className="bg-background">
+              {rows.map((row, index) => (
+                <TableRow
+                  key={row.id}
+                  row={row}
+                  columns={columnsWithWidths}
+                  index={index}
+                  showRowNumbers={tableOptions.showRowNumbers}
+                  showActionColumn={tableOptions.showActionColumn}
+                  customRenderers={activeConfig.renderers}
+                  onRowAction={handleRowAction}
+                  config={activeConfig}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
