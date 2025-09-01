@@ -6,6 +6,7 @@ import { TableId, TableConfiguration, RowId } from "@/lib/types";
 import { calculateColumnWidths } from "@/lib/column-sizing";
 import { TableHeader } from "./table-header";
 import { TableRow } from "./table-row";
+import { TableActions } from "./table-actions";
 
 interface TableEditorProps {
   readonly tableId?: TableId;
@@ -215,6 +216,11 @@ export function TableEditor({
 
   return (
     <div className={`w-full ${className}`} ref={containerRef}>
+      {/* Action Bubbles - Top Right */}
+      <div className="flex justify-end mb-4">
+        <TableActions tableId={currentTableId} />
+      </div>
+      
       <div className="border border-border rounded-lg shadow-sm relative overflow-hidden">
         <div className="overflow-x-auto">
           <div className="min-w-fit relative">
