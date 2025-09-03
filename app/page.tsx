@@ -151,7 +151,7 @@ export default function Home() {
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center pt-24 px-4">
       <div className="text-center max-w-2xl mb-16">
         <h1
-          className="text-5xl md:text-6xl font-normal mb-4 tracking-tight"
+          className="text-5xl md:text-6xl font-normal mb-4 tracking-tighter"
           style={{ fontFamily: "'Crimson Text', serif" }}
         >
           Tableau
@@ -162,8 +162,10 @@ export default function Home() {
         </p>
       </div>
 
+      <div className="w-full max-w-l">
+        <div className="h-4 border-t-2 border-dashed border-border mb-16" />
+      </div>
       <div className="w-full max-w-4xl">
-        <div className="h-4 border-t border-dashed border-border mb-16" />
         <div className="overflow-visible">
           <TableEditor config={tableConfig} />
         </div>

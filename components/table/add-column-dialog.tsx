@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { TableConfiguration } from "@/lib/types";
-import { Plus } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +50,7 @@ export function AddColumnDialog({
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="text-lg font-semibold text-foreground">Add Column</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="p-6 pt-4 space-y-6">
           <div className="space-y-2">
             <Input
@@ -63,7 +63,7 @@ export function AddColumnDialog({
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-medium text-foreground/80">Column Type</label>
+            <label className="text-sm font-medium text-foreground/80 my-8">Column Type</label>
             <div className="flex gap-1.5">
               {availableTypes.map((typeDef) => (
                 <button
@@ -106,7 +106,7 @@ export function AddColumnDialog({
               size="default"
               className="flex-1 h-10 text-sm gap-2 bg-foreground text-background hover:bg-foreground/90 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-50"
             >
-              <Plus size={14} />
+              <PlusIcon size={14} />
               Add Column
             </Button>
           </div>
