@@ -1,16 +1,11 @@
 // === Components ===
 export { TableEditor } from './table-editor'
-export { TableHeader } from './table-header' 
 export { TableRow } from './table-row'
 export { TableCell } from './table-cell'
 export { TableRowNumber } from './table-row-number'
 export { TableSelectAll } from './table-select-all'
+export { TableActions } from './table-actions'
+export { AddColumnDialog } from './add-column-dialog'
 
-// === Renderers ===
-export * from './renderers'
-
-// === Configuration ===
-export { table, presets } from '@/lib/config'
-
-// === Types ===
-export type * from '@/lib/types'
+// === Local Table ===
+export * from '@/lib/local-table'

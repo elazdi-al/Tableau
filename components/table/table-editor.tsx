@@ -1,196 +1,90 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useDatabase, initializeSampleData } from "@/lib/db";
-import { TableId, TableConfiguration, RowId } from "@/lib/types";
-import { calculateColumnWidths } from "@/lib/column-sizing";
-import { TableHeader } from "./table-header";
+import { useEffect, useState } from "react";
+import { useCollectionStore, useTableColumns, useTableRows, initializeSampleData, createDefaultRendererRegistry, type Column } from "@/lib/local-table";
+import { RendererRegistry } from "@/lib/types";
 import { TableRow } from "./table-row";
 import { TableActions } from "./table-actions";
+import { AddColumnDialog } from "./add-column-dialog";
+import { Button } from "@/components/ui/button";
+import { PlusIcon } from "@phosphor-icons/react";
 
 interface TableEditorProps {
-  readonly tableId?: TableId;
-  readonly config?: TableConfiguration;
+  readonly tableId?: string;
   readonly className?: string;
-  // Legacy support - deprecated, use config instead
-  readonly renderers?: Map<
-    string,
-    import("@/lib/types").ColumnRenderer<unknown>
-  >;
-  readonly showActionColumn?: boolean;
+  readonly renderers?: RendererRegistry;
 }
 
 export function TableEditor({
   tableId,
-  config,
   className = "",
-  renderers: legacyRenderers,
-  showActionColumn,
+  renderers,
 }: TableEditorProps) {
-  const {
-    getTableColumns,
-    getTableRows,
-    getCell,
-    options,
-    setOptions,
-    addColumn,
-    duplicateRow,
-    deleteRow,
-  } = useDatabase();
-  const [currentTableId, setCurrentTableId] = useState<TableId | null>(
-    tableId || null,
-  );
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
-  const containerRef = useRef<HTMLDivElement>(null);
+  const store = useCollectionStore();
+  const [currentTableId, setCurrentTableId] = useState<string | null>(tableId || null);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [showAddColumnDialog, setShowAddColumnDialog] = useState(false);
 
-  // Use config or create a minimal fallback
-  const activeConfig = config || {
-    options: {
-      showRowNumbers: true,
-      showSelectAll: true,
-      enableSelection: true,
-      enableEditing: true,
-      showActionColumn: showActionColumn ?? true,
-      columnSizing: "balanced" as const,
-      minColumnWidth: 80,
-      maxColumnWidth: 400,
-      density: "normal" as const,
-      striped: false,
-      availableColumnTypes: ["text", "number"],
-      defaultColumnType: "text",
-      headerAlignment: "left" as const,
-      cellAlignment: "left" as const,
-    },
-    typeRegistry: {
-      types: new Map(),
-      categories: new Map(),
-      getType: () => undefined,
-      getTypesByCategory: () => [],
-      getAllTypes: () => [],
-      registerType: () => {},
-    },
-    renderers: legacyRenderers || new Map(),
-    getAvailableTypes: () => [
-      {
-        type: "text",
-        category: "text" as const,
-        label: "Text",
-        defaultValue: "",
-        alignment: "left" as const,
-        validate: (v: unknown) => String(v || ""),
-      },
-      {
-        type: "number",
-        category: "number" as const,
-        label: "Number",
-        defaultValue: 0,
-        alignment: "right" as const,
-        validate: (v: unknown) => Number(v) || 0,
-      },
-    ],
-    getDefaultValue: (type: string) => (type === "number" ? 0 : ""),
-    getAlignment: () => "left" as const,
-    getHeaderAlignment: () => "left" as const,
-    validateValue: (value: unknown) => value,
-    formatValue: (value: unknown) => String(value),
-  };
+  // Use provided renderers or create default ones
+  const activeRenderers = renderers || createDefaultRendererRegistry();
 
-  // Action handlers
-  const handleAddColumn = (type: string, name: string, columnConfig?: Record<string, unknown>) => {
-    if (!currentTableId) return;
+  const { data: columns = [] } = useTableColumns(currentTableId || "");
+  const { data: rows = [] } = useTableRows(currentTableId || "");
 
-    const columns = getTableColumns(currentTableId);
-    const maxPosition =
-      columns.length > 0 ? Math.max(...columns.map((c) => c.position)) : -1;
-
-    const typeDef = activeConfig.typeRegistry?.getType(type);
-
-    addColumn({
-      tableId: currentTableId,
-      name: name,
-      type: type,
-      width: 200,
-      position: maxPosition + 1,
-      required: false,
-      readonly: false,
-      config: { ...typeDef?.defaultConfig, ...columnConfig },
-      alignment: activeConfig.getAlignment(type),
-      headerAlignment: activeConfig.getHeaderAlignment(type),
-    });
-  };
-
-  const handleRowAction = (action: string, rowId: RowId) => {
-    switch (action) {
-      case "duplicate":
-        duplicateRow(rowId);
-        break;
-      case "delete":
-        deleteRow(rowId);
-        break;
-    }
-  };
-
-  // Apply config options to global state
+  // Initialize sample data if no tableId provided
   useEffect(() => {
-    if (activeConfig?.options) {
-      setOptions(activeConfig.options);
-    }
-  }, [activeConfig, setOptions]);
-
-  // Use the provided tableId or initialize sample data
-  useEffect(() => {
-    if (!currentTableId) {
-      // Always initialize sample data if no tableId is provided
+    if (!currentTableId && !tableId) {
       const sampleTableId = initializeSampleData();
       setCurrentTableId(sampleTableId);
+      store.setSelectedTable(sampleTableId);
+    } else if (tableId) {
+      setCurrentTableId(tableId);
+      store.setSelectedTable(tableId);
     }
-  }, [currentTableId]);
+  }, [currentTableId, tableId, store]);
 
-  const columns = currentTableId ? getTableColumns(currentTableId) : [];
-  const rows = currentTableId ? getTableRows(currentTableId) : [];
-  const tableOptions = activeConfig.options;
-
-  // Calculate column widths based on content and sizing mode
-  useEffect(() => {
-    if (!currentTableId || columns.length === 0 || !containerRef.current)
-      return;
-
-    const containerWidth = containerRef.current.offsetWidth;
-
-    const columnsData = columns.map((column) => ({
-      column,
-      cellValues: rows.map((row) => getCell(row.id, column.id)?.value),
-    }));
-
-    const calculatedWidths = calculateColumnWidths(columnsData, {
-      mode: tableOptions.columnSizing,
-      containerWidth,
-      minColumnWidth: tableOptions.minColumnWidth,
-      maxColumnWidth: tableOptions.maxColumnWidth,
-      showRowNumbers: tableOptions.showRowNumbers,
-      showActionColumn: tableOptions.showActionColumn,
+  const handleRowSelect = (rowId: string, selected: boolean) => {
+    setSelectedRows(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(rowId);
+      } else {
+        newSet.delete(rowId);
+      }
+      return newSet;
     });
+  };
 
-    // Only update if widths actually changed
-    setColumnWidths((prevWidths) => {
-      const hasChanged =
-        Object.keys(calculatedWidths).some(
-          (key) => prevWidths[key] !== calculatedWidths[key],
-        ) ||
-        Object.keys(prevWidths).length !== Object.keys(calculatedWidths).length;
+  const handleSelectAll = () => {
+    if (selectedRows.size === rows.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(rows.map(row => row.id)));
+    }
+  };
 
-      return hasChanged ? calculatedWidths : prevWidths;
-    });
-  }, [
-    currentTableId,
-    columns,
-    rows,
-    tableOptions.columnSizing,
-    tableOptions.minColumnWidth,
-    tableOptions.maxColumnWidth,
-    tableOptions.showRowNumbers,
-    getCell,
-  ]);
+  const handleClearSelection = () => {
+    setSelectedRows(new Set());
+  };
+
+  const handleRowAction = (action: string, rowId: string) => {
+    switch (action) {
+      case "duplicate":
+        const originalRow = rows.find(row => row.id === rowId);
+        if (originalRow) {
+          store.createRow(currentTableId!, originalRow.data);
+        }
+        break;
+      case "delete":
+        store.deleteRow(rowId);
+        setSelectedRows(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(rowId);
+          return newSet;
+        });
+        break;
+    }
+  };
 
   if (!currentTableId) {
     return (
@@ -202,56 +96,137 @@ export function TableEditor({
 
   if (columns.length === 0) {
     return (
-      <div className="flex items-center justify-center h-40 text-muted-foreground">
-        <div>No columns found</div>
+      <div className={`w-full ${className}`}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">No columns yet</h3>
+          <Button
+            onClick={() => setShowAddColumnDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <PlusIcon size={16} />
+            Add Column
+          </Button>
+        </div>
+
+        <div className="border border-border rounded-lg p-8 text-center text-muted-foreground">
+          <p>Add your first column to get started</p>
+        </div>
+
+        <AddColumnDialog
+          isOpen={showAddColumnDialog}
+          onClose={() => setShowAddColumnDialog(false)}
+          tableId={currentTableId}
+        />
       </div>
     );
   }
 
-  // Merge calculated widths with column data
-  const columnsWithWidths = columns.map((column) => ({
-    ...column,
-    width: columnWidths[column.id] || column.width,
-  }));
+  const isAllSelected = selectedRows.size === rows.length && rows.length > 0;
+  const isPartiallySelected = selectedRows.size > 0 && selectedRows.size < rows.length;
 
   return (
-    <div className={`w-full ${className}`} ref={containerRef}>
+    <div className={`w-full ${className}`}>
       {/* Action Bubbles - Top Right */}
       <div className="flex justify-end mb-4">
-        <TableActions tableId={currentTableId} />
+        <TableActions
+          tableId={currentTableId}
+          selectedRows={selectedRows}
+          onClearSelection={handleClearSelection}
+        />
       </div>
-      
+
       <div className="border border-border rounded-lg shadow-sm relative overflow-hidden">
         <div className="overflow-x-auto">
           <div className="min-w-fit relative">
-            <TableHeader
-              columns={columnsWithWidths}
-              showRowNumbers={tableOptions.showRowNumbers}
-              showSelectAll={tableOptions.showSelectAll}
-              showActionColumn={tableOptions.showActionColumn}
-              onAddColumn={handleAddColumn}
-              config={activeConfig}
-            />
+            {/* Table Header */}
+            <div className="flex bg-muted/30 border-b border-border">
+              {/* Select All Checkbox */}
+              <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-r border-border">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  ref={input => {
+                    if (input) input.indeterminate = isPartiallySelected;
+                  }}
+                  onChange={handleSelectAll}
+                  className="rounded border-border"
+                />
+              </div>
+
+              {/* Row Number Header */}
+              <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-r border-border">
+                <span className="text-xs font-medium text-muted-foreground">#</span>
+              </div>
+
+              {/* Column Headers */}
+              {columns.map((column, index) => (
+                <div
+                  key={column.id}
+                  className={`flex-1 min-w-[120px] h-10 flex items-center px-3 ${index < columns.length - 1 ? 'border-r border-border' : ''}`}
+                  style={{ minWidth: Math.max(column.width || 120, 120) }}
+                >
+                  <span className="text-sm font-medium text-foreground truncate">
+                    {column.name}
+                  </span>
+                </div>
+              ))}
+
+              {/* Add Column Button */}
+              <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-l border-border">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAddColumnDialog(true)}
+                  className="h-8 w-8 p-0"
+                >
+                  <PlusIcon size={14} />
+                </Button>
+              </div>
+
+              {/* Actions Header */}
+              <div className="flex-shrink-0 w-12 h-10 border-l border-border" />
+            </div>
+
+            {/* Table Body */}
             <div className="bg-background">
               {rows.map((row, index) => (
-                <TableRow
-                  key={row.id}
-                  row={row}
-                  columns={columnsWithWidths}
-                  index={index}
-                  showRowNumbers={tableOptions.showRowNumbers}
-                  showActionColumn={tableOptions.showActionColumn}
-                  customRenderers={activeConfig.renderers}
-                  onRowAction={handleRowAction}
-                  config={activeConfig}
-                />
+                <div key={row.id} className="flex border-b border-border last:border-b-0">
+                  {/* Row Selection */}
+                  <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-r border-border">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.has(row.id)}
+                      onChange={(e) => handleRowSelect(row.id, e.target.checked)}
+                      className="rounded border-border"
+                    />
+                  </div>
+
+                  {/* Row Number */}
+                  <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-r border-border">
+                    <span className="text-xs text-muted-foreground">{index + 1}</span>
+                  </div>
+
+                  <TableRow
+                    row={row}
+                    columns={columns}
+                    index={index}
+                    showRowNumbers={false} // We handle this above
+                    showActionColumn={true}
+                    onRowAction={handleRowAction}
+                    renderers={activeRenderers}
+                  />
+                </div>
               ))}
             </div>
           </div>
         </div>
-        {/* Overlay for dropdowns to escape the overflow */}
-        <div className="absolute inset-0 pointer-events-none overflow-visible z-20" />
       </div>
+
+      <AddColumnDialog
+        isOpen={showAddColumnDialog}
+        onClose={() => setShowAddColumnDialog(false)}
+        tableId={currentTableId}
+      />
     </div>
   );
 }

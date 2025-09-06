@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Column, TableConfiguration } from "@/lib/types";
+import { Column } from "@/lib/local-table";
 import { TableSelectAll } from "./table-select-all";
 import { AddColumnDialog } from "./add-column-dialog";
 import { PlusIcon } from "@phosphor-icons/react";
@@ -11,8 +11,7 @@ interface TableHeaderProps {
   readonly showRowNumbers?: boolean;
   readonly showSelectAll?: boolean;
   readonly showActionColumn?: boolean;
-  readonly onAddColumn?: (type: string, name: string, config?: Record<string, unknown>) => void;
-  readonly config?: TableConfiguration;
+  readonly tableId: string;
 }
 
 export function TableHeader({
@@ -20,15 +19,9 @@ export function TableHeader({
   showRowNumbers = true,
   showSelectAll = true,
   showActionColumn = true,
-  onAddColumn,
-  config,
+  tableId,
 }: TableHeaderProps) {
   const [showDialog, setShowDialog] = useState(false);
-
-  const handleAddColumn = (type: string, name: string, columnConfig?: Record<string, unknown>) => {
-    onAddColumn?.(type, name, columnConfig);
-    setShowDialog(false);
-  };
   return (
     <>
       <div className="flex border-b border-border bg-muted rounded-t-lg">
@@ -46,9 +39,6 @@ export function TableHeader({
         {/* Scrollable columns */}
         <div className="flex flex-1 min-w-0">
           {columns.map((column, index) => {
-            const headerAlignment =
-              config?.getHeaderAlignment(column.type) || "left";
-            const typeDef = config?.typeRegistry?.getType(column.type);
             const isLastColumn = index === columns.length - 1;
             return (
               <div
@@ -58,13 +48,7 @@ export function TableHeader({
                 }`}
                 style={{ minWidth: Math.max(column.width || 120, 120) }}
               >
-                <div className={`flex items-center gap-2 truncate w-full justify-${headerAlignment}`}>
-                  {typeDef?.icon && (
-                    <typeDef.icon
-                      size={14}
-                      className="text-muted-foreground/70 flex-shrink-0"
-                    />
-                  )}
+                <div className="flex items-center gap-2 truncate w-full justify-start">
                   <span className="truncate font-medium">
                     {column.name}
                   </span>
@@ -91,14 +75,11 @@ export function TableHeader({
         )}
       </div>
 
-      {config && (
-        <AddColumnDialog
-          isOpen={showDialog}
-          onClose={() => setShowDialog(false)}
-          onAddColumn={handleAddColumn}
-          config={config}
-        />
-      )}
+      <AddColumnDialog
+        isOpen={showDialog}
+        onClose={() => setShowDialog(false)}
+        tableId={tableId}
+      />
     </>
   );
 }

@@ -1,39 +1,64 @@
 "use client";
 
-import { useState } from "react";
-import { TableConfiguration } from "@/lib/types";
-import { PlusIcon } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Column, useCollectionStore } from "@/lib/local-table";
+import { Calendar, CaretDown, Hash, PlusIcon, TextAa, ToggleLeft } from "@phosphor-icons/react";
+import { useState } from "react";
 
 interface AddColumnDialogProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
-  readonly onAddColumn: (type: string, name: string, config?: Record<string, unknown>) => void;
-  readonly config: TableConfiguration;
+  readonly tableId: string;
 }
 
 export function AddColumnDialog({
   isOpen,
   onClose,
-  onAddColumn,
-  config,
+  tableId,
 }: AddColumnDialogProps) {
-  const [selectedType, setSelectedType] = useState<string>("text");
+  const [selectedType, setSelectedType] = useState<Column["type"]>("text");
   const [columnName, setColumnName] = useState<string>("");
+  const store = useCollectionStore();
 
-  const availableTypes = config.getAvailableTypes();
+  const availableTypes = [
+    {
+      type: "text" as const,
+      label: "Text",
+      icon: TextAa,
+    },
+    {
+      type: "number" as const,
+      label: "Number",
+      icon: Hash,
+    },
+    {
+      type: "boolean" as const,
+      label: "Boolean",
+      icon: ToggleLeft,
+    },
+    {
+      type: "date" as const,
+      label: "Date",
+      icon: Calendar,
+    },
+    {
+      type: "select" as const,
+      label: "Select",
+      icon: CaretDown,
+    },
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedType && columnName.trim()) {
-      onAddColumn(selectedType, columnName.trim());
+      store.createColumn(tableId, columnName.trim(), selectedType);
       handleClose();
     }
   };
@@ -78,12 +103,10 @@ export function AddColumnDialog({
                     }
                   `}
                 >
-                  {typeDef.icon && (
-                    <typeDef.icon
-                      size={16}
-                      className={selectedType === typeDef.type ? "text-primary" : "text-current"}
-                    />
-                  )}
+                  <typeDef.icon
+                    size={16}
+                    className={selectedType === typeDef.type ? "text-primary" : "text-current"}
+                  />
                   <span>{typeDef.label}</span>
                 </button>
               ))}

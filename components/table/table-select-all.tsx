@@ -1,17 +1,20 @@
 "use client";
 
 import { Check, Minus } from "@phosphor-icons/react";
-import { useDatabase } from "@/lib/db";
 
 interface TableSelectAllProps {
   readonly className?: string;
+  readonly isAllSelected?: boolean;
+  readonly hasPartialSelection?: boolean;
+  readonly onToggleSelectAll?: () => void;
 }
 
-export function TableSelectAll({ className = "" }: TableSelectAllProps) {
-  const { selection, toggleSelectAll } = useDatabase();
-
-  const hasPartialSelection =
-    selection.selectedRows.size > 0 && !selection.isAllSelected;
+export function TableSelectAll({
+  className = "",
+  isAllSelected = false,
+  hasPartialSelection = false,
+  onToggleSelectAll
+}: TableSelectAllProps) {
 
   return (
     <div
@@ -19,15 +22,15 @@ export function TableSelectAll({ className = "" }: TableSelectAllProps) {
         group flex items-center justify-center h-10 w-12 border-r border-border
         cursor-pointer transition-all duration-200
         ${
-          selection.isAllSelected || hasPartialSelection
+          isAllSelected || hasPartialSelection
             ? "bg-primary/8 hover:bg-primary/12"
             : "bg-muted/30 hover:bg-muted/50"
         }
         ${className}
       `}
-      onClick={toggleSelectAll}
+      onClick={onToggleSelectAll}
     >
-      {selection.isAllSelected ? (
+      {isAllSelected ? (
         <Check
           size={16}
           weight="bold"
@@ -48,7 +51,7 @@ export function TableSelectAll({ className = "" }: TableSelectAllProps) {
       )}
 
       <span className="sr-only">
-        {selection.isAllSelected ? "Deselect all rows" : "Select all rows"}
+        {isAllSelected ? "Deselect all rows" : "Select all rows"}
       </span>
     </div>
   );

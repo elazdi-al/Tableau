@@ -1,18 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Column, Row, TableConfiguration } from "@/lib/types";
-import { useDatabase } from "@/lib/db";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuShortcut,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Column, Row, useCollectionStore } from "@/lib/local-table";
+import { RendererRegistry } from "@/lib/types";
+import { Copy, DotsThree, Trash } from "@phosphor-icons/react";
 import { TableCell } from "./table-cell";
 import { TableRowNumber } from "./table-row-number";
-import { DotsThree, Copy, Trash } from "@phosphor-icons/react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuShortcut,
-} from "@/components/ui/dropdown-menu";
 
 interface TableRowProps {
   readonly row: Row;
@@ -20,12 +19,8 @@ interface TableRowProps {
   readonly index: number;
   readonly showRowNumbers?: boolean;
   readonly showActionColumn?: boolean;
-  readonly customRenderers?: Map<
-    string,
-    import("@/lib/types").ColumnRenderer<unknown>
-  >;
-  readonly onRowAction?: (action: string, rowId: Row["id"]) => void;
-  readonly config?: TableConfiguration;
+  readonly onRowAction?: (action: string, rowId: string) => void;
+  readonly renderers?: RendererRegistry;
 }
 
 export function TableRow({
@@ -34,20 +29,13 @@ export function TableRow({
   index,
   showRowNumbers = true,
   showActionColumn = true,
-  customRenderers,
   onRowAction,
-  config,
+  renderers,
 }: TableRowProps) {
-  const { getCell, updateCell, createCell } = useDatabase();
+  const store = useCollectionStore();
 
-  const handleCellChange = (columnId: Column["id"], value: unknown) => {
-    const existingCell = getCell(row.id, columnId);
-
-    if (existingCell) {
-      updateCell(existingCell.id, value);
-    } else {
-      createCell(row.id, columnId, value);
-    }
+  const handleCellChange = (columnId: string, value: unknown) => {
+    store.updateCellValue(row.id, columnId, value);
   };
 
   const handleRowAction = (action: string) => {
@@ -66,7 +54,7 @@ export function TableRow({
       {/* Scrollable cells */}
       <div className="flex flex-1 min-w-0">
         {columns.map((column, index) => {
-          const cell = getCell(row.id, column.id);
+          const cellValue = row.data[column.id];
           const isLastColumn = index === columns.length - 1;
 
           return (
@@ -76,12 +64,11 @@ export function TableRow({
               style={{ minWidth: Math.max(column.width || 120, 120) }}
             >
               <TableCell
-                cell={cell}
+                value={cellValue}
                 column={column}
                 row={row}
                 onValueChange={(value) => handleCellChange(column.id, value)}
-                customRenderers={config?.renderers || customRenderers}
-                config={config}
+                renderers={renderers}
               />
             </div>
           );
@@ -107,7 +94,7 @@ export function TableRow({
                 <span className="flex-1 whitespace-nowrap">Duplicate</span>
                 <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 variant="destructive"
                 onClick={() => handleRowAction("delete")}
                 className="gap-2 py-2"
