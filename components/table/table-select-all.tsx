@@ -43,11 +43,17 @@ export function TableSelectAll({
           className="text-primary transition-colors duration-200"
         />
       ) : (
-        <Check
-          size={16}
-          weight="light"
-          className="text-transparent group-hover:text-muted-foreground/60 transition-colors duration-200"
-        />
+        <>
+          {/* Show hashtag when not hovered, checkmark when hovered */}
+          <span className="text-muted-foreground/50 text-sm font-medium group-hover:hidden transition-all duration-200">
+            #
+          </span>
+          <Check
+            size={16}
+            weight="light"
+            className="hidden text-muted-foreground/60 group-hover:block transition-all duration-200"
+          />
+        </>
       )}
 
       <span className="sr-only">

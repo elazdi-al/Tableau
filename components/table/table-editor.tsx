@@ -1,48 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useCollectionStore, useTableColumns, useTableRows, initializeSampleData, createDefaultRendererRegistry, type Column } from "@/lib/local-table";
+import { useState, useRef } from "react";
+import { useLocalTable, useCollectionStore, createDefaultRendererRegistry, type Column } from "@/lib/local-table";
 import { RendererRegistry } from "@/lib/types";
+import { TableHeader } from "./table-header";
 import { TableRow } from "./table-row";
 import { TableActions } from "./table-actions";
-import { AddColumnDialog } from "./add-column-dialog";
-import { Button } from "@/components/ui/button";
-import { PlusIcon } from "@phosphor-icons/react";
 
 interface TableEditorProps {
   readonly tableId?: string;
   readonly className?: string;
   readonly renderers?: RendererRegistry;
+  readonly showActionColumn?: boolean;
 }
 
 export function TableEditor({
   tableId,
   className = "",
   renderers,
+  showActionColumn = true,
 }: TableEditorProps) {
-  const store = useCollectionStore();
-  const [currentTableId, setCurrentTableId] = useState<string | null>(tableId || null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [showAddColumnDialog, setShowAddColumnDialog] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Use provided renderers or create default ones
   const activeRenderers = renderers || createDefaultRendererRegistry();
 
-  const { data: columns = [] } = useTableColumns(currentTableId || "");
-  const { data: rows = [] } = useTableRows(currentTableId || "");
+  // Use TanStack table integration with useLocalTable hook
+  // Always call the hook (Rules of Hooks) - uses constant tableId from local-table.ts
+  const localTable = useLocalTable({
+    initialPageSize: 50,
+  });
 
-  // Initialize sample data if no tableId provided
-  useEffect(() => {
-    if (!currentTableId && !tableId) {
-      const sampleTableId = initializeSampleData();
-      setCurrentTableId(sampleTableId);
-      store.setSelectedTable(sampleTableId);
-    } else if (tableId) {
-      setCurrentTableId(tableId);
-      store.setSelectedTable(tableId);
-    }
-  }, [currentTableId, tableId, store]);
+  // Get data from the local table hook
+  const rows = localTable.table.getRowModel().rows || [];
+  const columns = localTable.columns || [];
+  const rawRows = localTable.rawRows || []; // Get raw rows for proper schema compliance
 
+  // Selection handlers
   const handleRowSelect = (rowId: string, selected: boolean) => {
     setSelectedRows(prev => {
       const newSet = new Set(prev);
@@ -56,10 +52,10 @@ export function TableEditor({
   };
 
   const handleSelectAll = () => {
-    if (selectedRows.size === rows.length) {
+    if (selectedRows.size === rows.length && rows.length > 0) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(rows.map(row => row.id)));
+      setSelectedRows(new Set(rows.map(row => row.original._rowId)));
     }
   };
 
@@ -67,16 +63,18 @@ export function TableEditor({
     setSelectedRows(new Set());
   };
 
+  // Row action handlers using localTable actions
   const handleRowAction = (action: string, rowId: string) => {
     switch (action) {
       case "duplicate":
-        const originalRow = rows.find(row => row.id === rowId);
+        const originalRow = rows.find(row => row.original._rowId === rowId);
         if (originalRow) {
-          store.createRow(currentTableId!, originalRow.data);
+          const { _rowId, _position, ...data } = originalRow.original;
+          localTable.addRow(data);
         }
         break;
       case "delete":
-        store.deleteRow(rowId);
+        localTable.deleteRow(rowId);
         setSelectedRows(prev => {
           const newSet = new Set(prev);
           newSet.delete(rowId);
@@ -86,50 +84,32 @@ export function TableEditor({
     }
   };
 
-  if (!currentTableId) {
-    return (
-      <div className="flex items-center justify-center h-40 text-muted-foreground">
-        <div className="animate-pulse">Initializing table...</div>
-      </div>
-    );
-  }
+  // Loading states - no longer needed since we use constant tableId
 
   if (columns.length === 0) {
     return (
-      <div className={`w-full ${className}`}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">No columns yet</h3>
-          <Button
-            onClick={() => setShowAddColumnDialog(true)}
-            className="flex items-center gap-2"
-          >
-            <PlusIcon size={16} />
-            Add Column
-          </Button>
-        </div>
-
-        <div className="border border-border rounded-lg p-8 text-center text-muted-foreground">
-          <p>Add your first column to get started</p>
-        </div>
-
-        <AddColumnDialog
-          isOpen={showAddColumnDialog}
-          onClose={() => setShowAddColumnDialog(false)}
-          tableId={currentTableId}
-        />
+      <div className="flex items-center justify-center h-40 text-muted-foreground">
+        <div>No columns found</div>
       </div>
     );
   }
 
+  // Selection state calculations
   const isAllSelected = selectedRows.size === rows.length && rows.length > 0;
-  const isPartiallySelected = selectedRows.size > 0 && selectedRows.size < rows.length;
+  const hasPartialSelection = selectedRows.size > 0 && selectedRows.size < rows.length;
+
+  // Merge calculated widths with column data
+  const columnsWithWidths = columns.map((column) => ({
+    ...column,
+    width: columnWidths[column.id] || column.width || 200,
+  }));
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className={`w-full ${className}`} ref={containerRef}>
       {/* Action Bubbles - Top Right */}
       <div className="flex justify-end mb-4">
         <TableActions
-          tableId={currentTableId}
+          tableId="local-table"
           selectedRows={selectedRows}
           onClearSelection={handleClearSelection}
         />
@@ -139,94 +119,50 @@ export function TableEditor({
         <div className="overflow-x-auto">
           <div className="min-w-fit relative">
             {/* Table Header */}
-            <div className="flex bg-muted/30 border-b border-border">
-              {/* Select All Checkbox */}
-              <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-r border-border">
-                <input
-                  type="checkbox"
-                  checked={isAllSelected}
-                  ref={input => {
-                    if (input) input.indeterminate = isPartiallySelected;
-                  }}
-                  onChange={handleSelectAll}
-                  className="rounded border-border"
-                />
-              </div>
-
-              {/* Row Number Header */}
-              <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-r border-border">
-                <span className="text-xs font-medium text-muted-foreground">#</span>
-              </div>
-
-              {/* Column Headers */}
-              {columns.map((column, index) => (
-                <div
-                  key={column.id}
-                  className={`flex-1 min-w-[120px] h-10 flex items-center px-3 ${index < columns.length - 1 ? 'border-r border-border' : ''}`}
-                  style={{ minWidth: Math.max(column.width || 120, 120) }}
-                >
-                  <span className="text-sm font-medium text-foreground truncate">
-                    {column.name}
-                  </span>
-                </div>
-              ))}
-
-              {/* Add Column Button */}
-              <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-l border-border">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAddColumnDialog(true)}
-                  className="h-8 w-8 p-0"
-                >
-                  <PlusIcon size={14} />
-                </Button>
-              </div>
-
-              {/* Actions Header */}
-              <div className="flex-shrink-0 w-12 h-10 border-l border-border" />
-            </div>
+            <TableHeader
+              columns={columnsWithWidths}
+              showRowNumbers={true}
+              showSelectAll={true}
+              showActionColumn={showActionColumn}
+              tableId="local-table"
+              isAllSelected={isAllSelected}
+              hasPartialSelection={hasPartialSelection}
+              onToggleSelectAll={handleSelectAll}
+            />
 
             {/* Table Body */}
             <div className="bg-background">
-              {rows.map((row, index) => (
-                <div key={row.id} className="flex border-b border-border last:border-b-0">
-                  {/* Row Selection */}
-                  <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-r border-border">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.has(row.id)}
-                      onChange={(e) => handleRowSelect(row.id, e.target.checked)}
-                      className="rounded border-border"
-                    />
-                  </div>
+              {rows.map((row, index) => {
+                // Find the corresponding raw row to get proper schema-compliant data
+                const rawRow = rawRows.find(r => r.id === row.original._rowId);
 
-                  {/* Row Number */}
-                  <div className="flex-shrink-0 w-12 h-10 flex items-center justify-center border-r border-border">
-                    <span className="text-xs text-muted-foreground">{index + 1}</span>
-                  </div>
+                if (!rawRow) {
+                  return null; // Skip if raw row not found
+                }
 
+                return (
                   <TableRow
-                    row={row}
-                    columns={columns}
+                    key={rawRow.id}
+                    row={rawRow}
+                    columns={columnsWithWidths}
                     index={index}
-                    showRowNumbers={false} // We handle this above
-                    showActionColumn={true}
+                    showRowNumbers={true}
+                    showActionColumn={showActionColumn}
                     onRowAction={handleRowAction}
                     renderers={activeRenderers}
+                    enableSelection={true}
+                    isSelected={selectedRows.has(rawRow.id)}
+                    onToggleSelection={(rowId) => handleRowSelect(rowId, !selectedRows.has(rowId))}
                   />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
-      </div>
 
-      <AddColumnDialog
-        isOpen={showAddColumnDialog}
-        onClose={() => setShowAddColumnDialog(false)}
-        tableId={currentTableId}
-      />
+        {/* Overlay for dropdowns to escape the overflow */}
+        <div className="absolute inset-0 pointer-events-none overflow-visible z-20" />
+      </div>
     </div>
   );
 }

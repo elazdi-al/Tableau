@@ -30,6 +30,10 @@ export function TableCell({
     }
   }, [readonly]);
 
+  const handleCellClick = useCallback(() => {
+    handleStartEdit();
+  }, [handleStartEdit]);
+
   const handleValueChange = useCallback((newValue: unknown) => {
     onValueChange(newValue);
     setIsEditing(false);
@@ -50,7 +54,10 @@ export function TableCell({
 
   const RendererComponent = renderer.component;
   return (
-    <div className="h-10 w-full">
+    <div
+      className="h-10 w-full cursor-text"
+      onClick={handleCellClick}
+    >
       <RendererComponent
         value={renderer.validate(value)}
         onChange={handleValueChange}

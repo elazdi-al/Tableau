@@ -13,7 +13,7 @@ import {
     type SortingState,
     type VisibilityState
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
@@ -35,6 +35,9 @@ export type { Column, LocalTableRow, Row, Table };
 export const createDefaultRendererRegistry = (): RendererRegistry => {
   return createRendererRegistryFromComponents();
 };
+
+const userId = "local-user"
+const tableId = "local-table"
 
 // === Collections Setup ===
 export const tablesCollection = createCollection(
@@ -113,9 +116,9 @@ export const useCollectionStore = create<CollectionStore>()(
       // Table operations
       createTable: (name) => {
         const table: Table = {
-          id: `table-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: tableId,
           name,
-          userId: "local-user",
+          userId: userId,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -168,7 +171,7 @@ export const useCollectionStore = create<CollectionStore>()(
           type,
           width: 200,
           position: existingColumns.length,
-          userId: "local-user",
+          userId: userId,
         };
 
         columnsCollection.insert(column);
@@ -219,7 +222,7 @@ export const useCollectionStore = create<CollectionStore>()(
           tableId,
           position: existingRows.length,
           data,
-          userId: "local-user",
+          userId: userId,
           createdAt: new Date(),
         };
 
@@ -258,66 +261,67 @@ export const useCollectionStore = create<CollectionStore>()(
 export const useTables = () => {
   return useLiveQuery((q) =>
     q.from({ table: tablesCollection })
-      .where(({ table }) => eq(table.userId, "local-user"))
+      .where(({ table }) => eq(table.userId, userId))
       .orderBy(({ table }) => table.createdAt)
-      .select(({ table }) => table)
   );
 };
 
 export const useTable = (tableId: string | null) => {
   return useLiveQuery((q) =>
     q.from({ table: tablesCollection })
-     .where(({ table }) => and(eq(table.id, tableId), eq(table.userId, "local-user")))
-     .select(({ table }) => table)
+     .where(({ table }) => and(eq(table.id, tableId), eq(table.userId, userId)))
   );
 };
 
 export const useTableColumns = (tableId: string) => {
   return useLiveQuery((q) =>
     q.from({ column: columnsCollection })
-     .where(({ column }) => and(eq(column.tableId, tableId || ''), eq(column.userId, "local-user")))
+     .where(({ column }) => and(eq(column.tableId, tableId), eq(column.userId, userId)))
      .orderBy(({ column }) => column.position)
-     .select(({ column }) => column)
   );
 };
 
 export const useTableRows = (tableId: string) => {
   return useLiveQuery((q) =>
     q.from({ row: rowsCollection })
-     .where(({ row }) => and(eq(row.tableId, tableId || ''), eq(row.userId, "local-user")))
+     .where(({ row }) => and(eq(row.tableId, tableId), eq(row.userId, userId)))
      .orderBy(({ row }) => row.position)
-     .select(({ row }) => row)
   );
 };
 
 export const useColumnsByTable = () => {
   return useLiveQuery((q) =>
     q.from({ column: columnsCollection })
-     .where(({ column }) => eq(column.userId, "local-user"))
+     .where(({ column }) => eq(column.userId, userId))
      .orderBy(({ column }) => column.tableId)
      .orderBy(({ column }) => column.position)
-     .select(({ column }) => column)
   );
 };
 
 export const useRowsByTable = () => {
   return useLiveQuery((q) =>
     q.from({ row: rowsCollection })
-     .where(({ row }) => eq(row.userId, "local-user"))
+     .where(({ row }) => eq(row.userId, userId))
      .orderBy(({ row }) => row.tableId)
      .orderBy(({ row }) => row.position)
-     .select(({ row }) => row)
   );
 };
 
 // === TanStack Table Integration ===
 export interface UseLocalTableOptions {
-  tableId: string;
   initialPageSize?: number;
 }
 
-export const useLocalTable = ({ tableId, initialPageSize = 10 }: UseLocalTableOptions) => {
+export const useLocalTable = ({ initialPageSize = 10 }: UseLocalTableOptions) => {
   const store = useCollectionStore();
+
+  // Initialize sample data if no tables exist
+  useEffect(() => {
+    const existingTables = Array.from(tablesCollection.state.values());
+    if (existingTables.length === 0) {
+      initializeSampleData();
+    }
+  }, []);
 
   // State for table controls
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -327,7 +331,6 @@ export const useLocalTable = ({ tableId, initialPageSize = 10 }: UseLocalTableOp
     pageIndex: 0,
     pageSize: initialPageSize,
   });
-
   // Live queries for reactive data
   const { data: columns } = useTableColumns(tableId);
   const { data: rows } = useTableRows(tableId);
@@ -396,6 +399,7 @@ export const useLocalTable = ({ tableId, initialPageSize = 10 }: UseLocalTableOp
     // Raw data
     columns,
     rows: tableData,
+    rawRows: rows, // Expose raw rows for proper schema compliance
 
     // Store actions
     updateCellValue: store.updateCellValue,

@@ -12,6 +12,9 @@ interface TableHeaderProps {
   readonly showSelectAll?: boolean;
   readonly showActionColumn?: boolean;
   readonly tableId: string;
+  readonly isAllSelected?: boolean;
+  readonly hasPartialSelection?: boolean;
+  readonly onToggleSelectAll?: () => void;
 }
 
 export function TableHeader({
@@ -20,6 +23,9 @@ export function TableHeader({
   showSelectAll = true,
   showActionColumn = true,
   tableId,
+  isAllSelected = false,
+  hasPartialSelection = false,
+  onToggleSelectAll,
 }: TableHeaderProps) {
   const [showDialog, setShowDialog] = useState(false);
   return (
@@ -29,7 +35,11 @@ export function TableHeader({
         {showRowNumbers && (
           <div className="sticky left-0 z-10 flex-shrink-0 bg-muted rounded-tl-lg">
             {showSelectAll ? (
-              <TableSelectAll />
+              <TableSelectAll
+                isAllSelected={isAllSelected}
+                hasPartialSelection={hasPartialSelection}
+                onToggleSelectAll={onToggleSelectAll}
+              />
             ) : (
               <div className="h-10 w-12 border-r border-border bg-muted" />
             )}
@@ -51,6 +61,9 @@ export function TableHeader({
                 <div className="flex items-center gap-2 truncate w-full justify-start">
                   <span className="truncate font-medium">
                     {column.name}
+                  </span>
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider rounded-sm bg-muted-foreground/10 text-muted-foreground/70 border border-muted-foreground/20">
+                    {column.type}
                   </span>
                 </div>
               </div>

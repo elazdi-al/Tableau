@@ -29,7 +29,7 @@ export default function Home() {
 
       <div className="w-full max-w-4xl">
         <div className="overflow-visible">
-         <TableEditor />
+          <TableEditor tableId="local-table"/>
         </div>
       </div>
 

@@ -21,6 +21,9 @@ interface TableRowProps {
   readonly showActionColumn?: boolean;
   readonly onRowAction?: (action: string, rowId: string) => void;
   readonly renderers?: RendererRegistry;
+  readonly enableSelection?: boolean;
+  readonly isSelected?: boolean;
+  readonly onToggleSelection?: (rowId: string) => void;
 }
 
 export function TableRow({
@@ -31,6 +34,9 @@ export function TableRow({
   showActionColumn = true,
   onRowAction,
   renderers,
+  enableSelection = false,
+  isSelected = false,
+  onToggleSelection,
 }: TableRowProps) {
   const store = useCollectionStore();
 
@@ -47,7 +53,13 @@ export function TableRow({
       {/* Sticky row number */}
       {showRowNumbers && (
         <div className="sticky left-0 z-10 flex-shrink-0 bg-background">
-          <TableRowNumber row={row} index={index} />
+          <TableRowNumber
+            row={row}
+            index={index}
+            enableSelection={enableSelection}
+            isSelected={isSelected}
+            onToggleSelection={onToggleSelection}
+          />
         </div>
       )}
 
