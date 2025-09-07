@@ -5,8 +5,8 @@ export const TableSchema = z.object({
   id: z.string(),
   name: z.string(),
   userId: z.string().default("local-user"),
-  createdAt: z.date().default(() => new Date()),
-  updatedAt: z.date().default(() => new Date()),
+  createdAt: z.coerce.date().default(() => new Date()),
+  updatedAt: z.coerce.date().default(() => new Date()),
 });
 
 export const ColumnSchema = z.object({
@@ -25,7 +25,7 @@ export const RowSchema = z.object({
   position: z.number(),
   data: z.record(z.string(), z.unknown()).default({}),
   userId: z.string().default("local-user"),
-  createdAt: z.date().default(() => new Date()),
+  createdAt: z.coerce.date().default(() => new Date()),
 });
 
 // === Inferred Types ===
@@ -33,13 +33,18 @@ export type Table = z.infer<typeof TableSchema>;
 export type Column = z.infer<typeof ColumnSchema>;
 export type Row = z.infer<typeof RowSchema>;
 
-// === Table Configuration ===
+// === Display & Configuration Types ===
+export type TableDensity = "compact" | "normal" | "comfortable";
+
 export interface TableConfig {
   showRowNumbers?: boolean;
+  showSelectAll?: boolean;
   enableSelection?: boolean;
   enableEditing?: boolean;
-  density?: "compact" | "normal" | "comfortable";
+  showActionColumn?: boolean;
+  density?: TableDensity;
   striped?: boolean;
+  renderers?: RendererRegistry;
 }
 
 // === Cell Renderer Types ===
@@ -59,26 +64,4 @@ export interface CellRenderer<T = unknown> {
   format?: (value: T) => string;
 }
 
-// === Renderer Registry Type ===
 export type RendererRegistry = Map<string, CellRenderer<any>>;
-
-// === Table Configuration Builder Types ===
-export interface TableConfiguration {
-  showRowNumbers?: boolean;
-  showSelectAll?: boolean;
-  enableSelection?: boolean;
-  enableEditing?: boolean;
-  showActionColumn?: boolean;
-  density?: "compact" | "normal" | "comfortable";
-  striped?: boolean;
-  renderers?: RendererRegistry;
-  availableColumnTypes?: string[];
-  defaultColumnType?: string;
-}
-
-// === TanStack Table Integration Types ===
-export interface LocalTableRow {
-  [key: string]: unknown;
-  _rowId: string;
-  _position: number;
-}

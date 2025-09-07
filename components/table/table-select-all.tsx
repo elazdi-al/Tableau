@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Minus } from "@phosphor-icons/react";
+import { CheckIcon, MinusIcon } from "@phosphor-icons/react";
+import { memo } from "react";
 
 interface TableSelectAllProps {
   readonly className?: string;
@@ -9,18 +10,17 @@ interface TableSelectAllProps {
   readonly onToggleSelectAll?: () => void;
 }
 
-export function TableSelectAll({
+export const TableSelectAll = memo(function TableSelectAll({
   className = "",
   isAllSelected = false,
   hasPartialSelection = false,
   onToggleSelectAll
 }: TableSelectAllProps) {
-
   return (
     <div
       className={`
         group flex items-center justify-center h-10 w-12 border-r border-border
-        cursor-pointer transition-all duration-200
+        cursor-pointer
         ${
           isAllSelected || hasPartialSelection
             ? "bg-primary/8 hover:bg-primary/12"
@@ -31,27 +31,27 @@ export function TableSelectAll({
       onClick={onToggleSelectAll}
     >
       {isAllSelected ? (
-        <Check
+        <CheckIcon
           size={16}
           weight="bold"
-          className="text-primary transition-colors duration-200"
+          className="text-primary"
         />
       ) : hasPartialSelection ? (
-        <Minus
+        <MinusIcon
           size={16}
           weight="bold"
-          className="text-primary transition-colors duration-200"
+          className="text-primary"
         />
       ) : (
         <>
           {/* Show hashtag when not hovered, checkmark when hovered */}
-          <span className="text-muted-foreground/50 text-sm font-medium group-hover:hidden transition-all duration-200">
+          <span className="text-muted-foreground/50 text-sm font-medium group-hover:opacity-0">
             #
           </span>
-          <Check
+          <CheckIcon
             size={16}
             weight="light"
-            className="hidden text-muted-foreground/60 group-hover:block transition-all duration-200"
+            className="absolute opacity-0 text-muted-foreground/60 group-hover:opacity-100"
           />
         </>
       )}
@@ -61,4 +61,4 @@ export function TableSelectAll({
       </span>
     </div>
   );
-}
+});

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
-import { Check } from '@phosphor-icons/react';
+import { CheckIcon } from '@phosphor-icons/react';
 import { Row } from '@/lib/local-table';
+import { memo } from 'react';
 
 interface TableRowNumberProps {
   readonly row: Row;
@@ -13,7 +13,7 @@ interface TableRowNumberProps {
   readonly onToggleSelection?: (rowId: string) => void;
 }
 
-export function TableRowNumber({
+export const TableRowNumber = memo(function TableRowNumber({
   row,
   index,
   className = "",
@@ -21,53 +21,28 @@ export function TableRowNumber({
   isSelected = false,
   onToggleSelection
 }: TableRowNumberProps) {
-  const [isHovered, setIsHovered] = useState(false);
-
-  const showCheckmark = isHovered || isSelected;
+  const bgClass = isSelected ? 'bg-primary/8 text-primary cursor-pointer' : 'bg-muted/30 hover:bg-muted/50';
+  const cursorClass = enableSelection ? 'cursor-pointer' : '';
+  const numberOpacity = enableSelection && !isSelected ? 'group-hover:opacity-0' : '';
+  const checkOpacity = isSelected ? 'opacity-100 text-primary' : 'opacity-0 group-hover:opacity-100 text-muted-foreground/50';
 
   return (
     <div
-      className={`
-        group relative flex items-center justify-center h-10 w-12 border-r border-border
-        text-sm text-muted-foreground transition-all duration-200
-        ${isSelected
-          ? 'bg-primary/8 text-primary cursor-pointer'
-          : 'bg-muted/30 hover:bg-muted/50'
-        }
-        ${enableSelection ? 'cursor-pointer' : ''}
-        ${className}
-      `}
+      className={`group relative flex items-center justify-center h-10 w-12 border-r border-border text-sm text-muted-foreground ${bgClass} ${cursorClass} ${className}`}
       onClick={() => enableSelection && onToggleSelection?.(row.id)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Row Number - shows when not hovering/selected */}
-      <span
-        className={`
-          absolute text-xs font-mono transition-all duration-200
-          ${showCheckmark && enableSelection ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}
-        `}
-      >
+      {/* Row Number - hidden on hover when selection enabled and not selected */}
+      <span className={`text-xs font-mono ${numberOpacity} ${isSelected ? 'opacity-0' : ''}`}>
         {index + 1}
       </span>
 
-      {/* Checkmark - shows on hover/selection */}
+      {/* Checkmark - shows on hover or when selected */}
       {enableSelection && (
-        <div
-          className={`
-            absolute inset-0 flex items-center justify-center transition-all duration-200
-            ${showCheckmark ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}
-          `}
-        >
-          <Check
-            size={16}
-            weight={isSelected ? "bold" : "regular"}
-            className={`
-              transition-colors duration-200
-              ${isSelected ? 'text-primary' : 'text-muted-foreground/50'}
-            `}
-          />
-        </div>
+        <CheckIcon
+          size={16}
+          weight={isSelected ? "bold" : "regular"}
+          className={`absolute ${checkOpacity}`}
+        />
       )}
 
       <span className="sr-only">
@@ -75,4 +50,4 @@ export function TableRowNumber({
       </span>
     </div>
   );
-}
+});

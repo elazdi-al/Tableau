@@ -1,7 +1,7 @@
 "use client";
 
 import { useCollectionStore } from "@/lib/local-table";
-import { Plus, Trash } from "@phosphor-icons/react";
+import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
 
 interface TableActionsProps {
   readonly tableId: string | null;
@@ -42,7 +42,7 @@ export function TableActions({ tableId, className = "", selectedRows = new Set()
         disabled={!tableId}
         className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-foreground/80 bg-background/80 backdrop-blur-sm border border-border/40 rounded-md hover:bg-muted/30 hover:text-foreground hover:border-border/60 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <Plus size={12} weight="bold" />
+        <PlusIcon size={12} weight="bold" />
         <span>Add Row</span>
       </button>
 
@@ -52,7 +52,7 @@ export function TableActions({ tableId, className = "", selectedRows = new Set()
           onClick={handleDeleteSelected}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-destructive bg-background/80 backdrop-blur-sm border border-destructive/20 rounded-md hover:bg-destructive/5 hover:text-destructive hover:border-destructive/30 transition-all shadow-sm animate-in slide-in-from-right-2 fade-in-0 duration-300"
         >
-          <Trash size={12} weight="bold" />
+          <TrashIcon size={12} weight="bold" />
           <span>Delete {selectedRowsCount}</span>
         </button>
       )}

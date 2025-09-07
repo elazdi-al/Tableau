@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Column, Row, useCollectionStore } from "@/lib/local-table";
 import { RendererRegistry } from "@/lib/types";
-import { Copy, DotsThree, Trash } from "@phosphor-icons/react";
+import { CopyIcon, DotsThreeIcon, TrashIcon } from "@phosphor-icons/react";
 import { TableCell } from "./table-cell";
 import { TableRowNumber } from "./table-row-number";
 
@@ -48,11 +48,17 @@ export function TableRow({
     onRowAction?.(action, row.id);
   };
 
+  const rowBgClass = isSelected ? 'bg-primary/4 hover:bg-primary/6' : 'hover:bg-muted/30';
+  const cellBgClass = isSelected ? 'bg-primary/4' : 'bg-background';
+
   return (
-    <div className="flex border-b border-border last:border-b-0" data-row-id={row.id}>
+    <div
+      className={`flex border-b border-border last:border-b-0 transition-colors duration-150 ${rowBgClass}`}
+      data-row-id={row.id}
+    >
       {/* Sticky row number */}
       {showRowNumbers && (
-        <div className="sticky left-0 z-10 flex-shrink-0 bg-background">
+        <div className={`sticky left-0 z-10 flex-shrink-0 ${cellBgClass}`}>
           <TableRowNumber
             row={row}
             index={index}
@@ -89,11 +95,11 @@ export function TableRow({
 
       {/* Sticky action column */}
       {showActionColumn && (
-        <div className="sticky right-0 z-10 flex-shrink-0 bg-background">
+        <div className={`sticky right-0 z-10 flex-shrink-0 ${cellBgClass}`}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="h-10 w-12 border-l border-border flex items-center justify-center bg-background hover:bg-muted/40 data-[state=open]:bg-muted/40 transition-colors focus:outline-none">
-                <DotsThree
+              <button className={`h-10 w-12 border-l border-border flex items-center justify-center transition-colors focus:outline-none ${isSelected ? 'bg-primary/4 hover:bg-primary/6 data-[state=open]:bg-primary/6' : 'bg-background hover:bg-muted/40 data-[state=open]:bg-muted/40'}`}>
+                <DotsThreeIcon
                   size={16}
                   weight="bold"
                   className="text-muted-foreground hover:text-foreground transition-colors duration-200"
@@ -102,7 +108,7 @@ export function TableRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-40" align="end" sideOffset={8} avoidCollisions={true}>
               <DropdownMenuItem onClick={() => handleRowAction("duplicate")} className="gap-2 py-2 hover:bg-muted/60">
-                <Copy size={14} className="text-muted-foreground" />
+                <CopyIcon size={14} className="text-muted-foreground" />
                 <span className="flex-1 whitespace-nowrap">Duplicate</span>
                 <DropdownMenuShortcut>⌘D</DropdownMenuShortcut>
               </DropdownMenuItem>
@@ -111,7 +117,7 @@ export function TableRow({
                 onClick={() => handleRowAction("delete")}
                 className="gap-2 py-2"
               >
-                <Trash size={14} />
+                <TrashIcon size={14} />
                 <span className="flex-1 whitespace-nowrap">Delete</span>
                 <DropdownMenuShortcut>⌫</DropdownMenuShortcut>
               </DropdownMenuItem>

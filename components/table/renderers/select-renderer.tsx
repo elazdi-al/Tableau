@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { CellRenderer, CellRendererProps } from "@/lib/renderers";
+import { CellRenderer, CellRendererProps } from "@/lib/types";
 
 const SelectRenderer: React.FC<CellRendererProps<string>> = ({
   value,

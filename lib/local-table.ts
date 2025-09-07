@@ -13,14 +13,13 @@ import {
     type SortingState,
     type VisibilityState
 } from "@tanstack/react-table";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import {
     Column,
     ColumnSchema,
-    LocalTableRow,
     RendererRegistry,
     Row,
     RowSchema,
@@ -29,15 +28,21 @@ import {
 } from "./types";
 
 // Re-export types for convenience
-export type { Column, LocalTableRow, Row, Table };
+export type { Column, Row, Table };
 
-// Create default renderer registry
+// === Constants ===
+const DEFAULT_USER_ID = "local-user";
+const DEFAULT_TABLE_ID = "local-table";
+const DEFAULT_COLUMN_WIDTH = 200;
+const DEFAULT_PAGE_SIZE = 10;
+
+// === Utility Functions ===
 export const createDefaultRendererRegistry = (): RendererRegistry => {
   return createRendererRegistryFromComponents();
 };
 
-const userId = "local-user"
-const tableId = "local-table"
+const generateId = (prefix: string): string =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 // === Collections Setup ===
 export const tablesCollection = createCollection(
@@ -116,9 +121,9 @@ export const useCollectionStore = create<CollectionStore>()(
       // Table operations
       createTable: (name) => {
         const table: Table = {
-          id: tableId,
+          id: DEFAULT_TABLE_ID,
           name,
-          userId: userId,
+          userId: DEFAULT_USER_ID,
           createdAt: new Date(),
           updatedAt: new Date(),
         };
@@ -165,13 +170,13 @@ export const useCollectionStore = create<CollectionStore>()(
           .filter(col => col.tableId === tableId);
 
         const column: Column = {
-          id: `col-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: generateId('col'),
           tableId,
           name,
           type,
-          width: 200,
+          width: DEFAULT_COLUMN_WIDTH,
           position: existingColumns.length,
-          userId: userId,
+          userId: DEFAULT_USER_ID,
         };
 
         columnsCollection.insert(column);
@@ -218,11 +223,11 @@ export const useCollectionStore = create<CollectionStore>()(
           .filter(row => row.tableId === tableId);
 
         const row: Row = {
-          id: `row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: generateId('row'),
           tableId,
           position: existingRows.length,
           data,
-          userId: userId,
+          userId: DEFAULT_USER_ID,
           createdAt: new Date(),
         };
 
@@ -261,7 +266,7 @@ export const useCollectionStore = create<CollectionStore>()(
 export const useTables = () => {
   return useLiveQuery((q) =>
     q.from({ table: tablesCollection })
-      .where(({ table }) => eq(table.userId, userId))
+      .where(({ table }) => eq(table.userId, DEFAULT_USER_ID))
       .orderBy(({ table }) => table.createdAt)
   );
 };
@@ -269,14 +274,14 @@ export const useTables = () => {
 export const useTable = (tableId: string | null) => {
   return useLiveQuery((q) =>
     q.from({ table: tablesCollection })
-     .where(({ table }) => and(eq(table.id, tableId), eq(table.userId, userId)))
+     .where(({ table }) => and(eq(table.id, tableId), eq(table.userId, DEFAULT_USER_ID)))
   );
 };
 
 export const useTableColumns = (tableId: string) => {
   return useLiveQuery((q) =>
     q.from({ column: columnsCollection })
-     .where(({ column }) => and(eq(column.tableId, tableId), eq(column.userId, userId)))
+     .where(({ column }) => and(eq(column.tableId, tableId), eq(column.userId, DEFAULT_USER_ID)))
      .orderBy(({ column }) => column.position)
   );
 };
@@ -284,44 +289,29 @@ export const useTableColumns = (tableId: string) => {
 export const useTableRows = (tableId: string) => {
   return useLiveQuery((q) =>
     q.from({ row: rowsCollection })
-     .where(({ row }) => and(eq(row.tableId, tableId), eq(row.userId, userId)))
-     .orderBy(({ row }) => row.position)
-  );
-};
-
-export const useColumnsByTable = () => {
-  return useLiveQuery((q) =>
-    q.from({ column: columnsCollection })
-     .where(({ column }) => eq(column.userId, userId))
-     .orderBy(({ column }) => column.tableId)
-     .orderBy(({ column }) => column.position)
-  );
-};
-
-export const useRowsByTable = () => {
-  return useLiveQuery((q) =>
-    q.from({ row: rowsCollection })
-     .where(({ row }) => eq(row.userId, userId))
-     .orderBy(({ row }) => row.tableId)
+     .where(({ row }) => and(eq(row.tableId, tableId), eq(row.userId, DEFAULT_USER_ID)))
      .orderBy(({ row }) => row.position)
   );
 };
 
 // === TanStack Table Integration ===
 export interface UseLocalTableOptions {
+  tableId?: string;
   initialPageSize?: number;
 }
 
-export const useLocalTable = ({ initialPageSize = 10 }: UseLocalTableOptions) => {
+export const useLocalTable = ({ tableId, initialPageSize = DEFAULT_PAGE_SIZE }: UseLocalTableOptions) => {
   const store = useCollectionStore();
 
+  // Get tables data at the top level for live query functionality
+  const { data: tables } = useTables();
+
   // Initialize sample data if no tables exist
-  useEffect(() => {
-    const existingTables = Array.from(tablesCollection.state.values());
-    if (existingTables.length === 0) {
-      initializeSampleData();
+  useMemo(() => {
+    if (tables.length === 0) {
+      initializeSampleData(tables);
     }
-  }, []);
+  }, [tables]);
 
   // State for table controls
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -332,48 +322,23 @@ export const useLocalTable = ({ initialPageSize = 10 }: UseLocalTableOptions) =>
     pageSize: initialPageSize,
   });
   // Live queries for reactive data
-  const { data: columns } = useTableColumns(tableId);
-  const { data: rows } = useTableRows(tableId);
+  const { data: columns } = useTableColumns(tableId || DEFAULT_TABLE_ID);
+  const { data: rows } = useTableRows(tableId || DEFAULT_TABLE_ID);
 
-  // Transform columns for TanStack Table
-  const tableColumns = useMemo<ColumnDef<LocalTableRow>[]>(() =>
-    columns.map((col): ColumnDef<LocalTableRow> => ({
+  // Simple column definitions for TanStack Table
+  const tableColumns = useMemo<ColumnDef<Row>[]>(() =>
+    columns.map((col): ColumnDef<Row> => ({
       id: col.id,
-      accessorKey: col.id,
+      accessorFn: (row) => row.data[col.id],
       header: col.name,
       size: col.width,
-      cell: ({ getValue }) => {
-        const value = getValue();
-
-        switch (col.type) {
-          case "boolean":
-            return value ? "✓" : "✗";
-          case "date":
-            return value ? new Date(value as string).toLocaleDateString() : "";
-          case "number":
-            return typeof value === "number" ? value.toLocaleString() : "";
-          default:
-            return String(value ?? "");
-        }
-      },
-      filterFn: col.type === "boolean" ? "equals" : "includesString",
     })),
     [columns]
   );
 
-  // Transform rows for TanStack Table
-  const tableData = useMemo<LocalTableRow[]>(() =>
-    rows.map((row) => ({
-      ...row.data,
-      _rowId: row.id,
-      _position: row.position,
-    } as LocalTableRow)),
-    [rows]
-  );
-
-  // Initialize TanStack Table
+  // Initialize TanStack Table with raw rows
   const table = useReactTable({
-    data: tableData,
+    data: rows,
     columns: tableColumns,
     state: {
       sorting,
@@ -393,19 +358,17 @@ export const useLocalTable = ({ initialPageSize = 10 }: UseLocalTableOptions) =>
   });
 
   return {
-    // Table instance
+    // Table instance and data
     table,
-
-    // Raw data
     columns,
-    rows: tableData,
-    rawRows: rows, // Expose raw rows for proper schema compliance
+    rows,
+    isLoading: false,
 
     // Store actions
     updateCellValue: store.updateCellValue,
-    addRow: () => store.createRow(tableId),
+    addRow: (data?: Record<string, unknown>) => store.createRow(tableId || DEFAULT_TABLE_ID, data),
     deleteRow: store.deleteRow,
-    addColumn: (name: string, type?: Column["type"]) => store.createColumn(tableId, name, type),
+    addColumn: (name: string, type?: Column["type"]) => store.createColumn(tableId || DEFAULT_TABLE_ID, name, type),
     deleteColumn: store.deleteColumn,
     updateColumn: store.updateColumn,
 
@@ -420,14 +383,13 @@ export const useLocalTable = ({ initialPageSize = 10 }: UseLocalTableOptions) =>
 };
 
 // === Sample Data Initialization ===
-export const initializeSampleData = (): string => {
+export const initializeSampleData = (tables: Table[]): string => {
   const store = useCollectionStore.getState();
 
   // Check if we already have tables to avoid double initialization
-  const existingTables = Array.from(tablesCollection.state.values());
-  if (existingTables.length > 0) {
-    // Return the first existing table instead of creating a new one
-    const firstTable = existingTables[0];
+  if (tables.length > 0) {
+    // Use the first existing table from the live query
+    const firstTable = tables[0];
     store.setSelectedTable(firstTable.id);
     return firstTable.id;
   }
@@ -450,29 +412,4 @@ export const initializeSampleData = (): string => {
 
   store.setSelectedTable(tableId);
   return tableId;
-};
-
-// === Utility Hooks ===
-export const useSelectedTable = () => {
-  const selectedTableId = useCollectionStore((state) => state.selectedTableId);
-  const { data: tables } = useTables();
-
-  return useMemo(() =>
-    tables.find(table => table.id === selectedTableId) || null,
-    [tables, selectedTableId]
-  );
-};
-
-export const useTableStats = (tableId: string) => {
-  const { data: columns } = useTableColumns(tableId);
-  const { data: rows } = useTableRows(tableId);
-
-  return useMemo(() => ({
-    columnCount: columns.length,
-    rowCount: rows.length,
-    lastUpdated: Math.max(
-      ...rows.map(row => row.createdAt.getTime()),
-      0
-    ),
-  }), [columns.length, rows]);
 };

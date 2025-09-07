@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useLocalTable, useCollectionStore, createDefaultRendererRegistry, type Column } from "@/lib/local-table";
+import { createDefaultRendererRegistry, useLocalTable } from "@/lib/local-table";
 import { RendererRegistry } from "@/lib/types";
+import { useRef, useState, useMemo, useCallback } from "react";
+import { TableActions } from "./table-actions";
 import { TableHeader } from "./table-header";
 import { TableRow } from "./table-row";
-import { TableActions } from "./table-actions";
 
 interface TableEditorProps {
   readonly tableId?: string;
@@ -28,15 +28,16 @@ export function TableEditor({
   const activeRenderers = renderers || createDefaultRendererRegistry();
 
   // Use TanStack table integration with useLocalTable hook
-  // Always call the hook (Rules of Hooks) - uses constant tableId from local-table.ts
+  // Always call the hook (Rules of Hooks) - pass tableId parameter
   const localTable = useLocalTable({
+    tableId,
     initialPageSize: 50,
   });
 
   // Get data from the local table hook
-  const rows = localTable.table.getRowModel().rows || [];
+  const tableRows = localTable.table?.getRowModel().rows || [];
   const columns = localTable.columns || [];
-  const rawRows = localTable.rawRows || []; // Get raw rows for proper schema compliance
+  const rows = localTable.rows || [];
 
   // Selection handlers
   const handleRowSelect = (rowId: string, selected: boolean) => {
@@ -55,7 +56,7 @@ export function TableEditor({
     if (selectedRows.size === rows.length && rows.length > 0) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(rows.map(row => row.original._rowId)));
+      setSelectedRows(new Set(rows.map(row => row.id)));
     }
   };
 
@@ -63,14 +64,13 @@ export function TableEditor({
     setSelectedRows(new Set());
   };
 
-  // Row action handlers using localTable actions
+  // Row action handlers
   const handleRowAction = (action: string, rowId: string) => {
     switch (action) {
       case "duplicate":
-        const originalRow = rows.find(row => row.original._rowId === rowId);
+        const originalRow = rows.find(row => row.id === rowId);
         if (originalRow) {
-          const { _rowId, _position, ...data } = originalRow.original;
-          localTable.addRow(data);
+          localTable.addRow(originalRow.data);
         }
         break;
       case "delete":
@@ -83,8 +83,6 @@ export function TableEditor({
         break;
     }
   };
-
-  // Loading states - no longer needed since we use constant tableId
 
   if (columns.length === 0) {
     return (
@@ -132,30 +130,21 @@ export function TableEditor({
 
             {/* Table Body */}
             <div className="bg-background">
-              {rows.map((row, index) => {
-                // Find the corresponding raw row to get proper schema-compliant data
-                const rawRow = rawRows.find(r => r.id === row.original._rowId);
-
-                if (!rawRow) {
-                  return null; // Skip if raw row not found
-                }
-
-                return (
-                  <TableRow
-                    key={rawRow.id}
-                    row={rawRow}
-                    columns={columnsWithWidths}
-                    index={index}
-                    showRowNumbers={true}
-                    showActionColumn={showActionColumn}
-                    onRowAction={handleRowAction}
-                    renderers={activeRenderers}
-                    enableSelection={true}
-                    isSelected={selectedRows.has(rawRow.id)}
-                    onToggleSelection={(rowId) => handleRowSelect(rowId, !selectedRows.has(rowId))}
-                  />
-                );
-              })}
+              {rows.map((row, index) => (
+                <TableRow
+                  key={row.id}
+                  row={row}
+                  columns={columnsWithWidths}
+                  index={index}
+                  showRowNumbers={true}
+                  showActionColumn={showActionColumn}
+                  onRowAction={handleRowAction}
+                  renderers={activeRenderers}
+                  enableSelection={true}
+                  isSelected={selectedRows.has(row.id)}
+                  onToggleSelection={(rowId) => handleRowSelect(rowId, !selectedRows.has(rowId))}
+                />
+              ))}
             </div>
           </div>
         </div>

@@ -19,7 +19,7 @@ export default function Home() {
         </h1>
         <p className="text-muted-foreground text-lg md:text-xl font-light leading-relaxed">
           A lightweight and composable React component for quickly making table
-          editors with custom renderers and TanStack Table
+          editors
         </p>
       </div>
 
