@@ -23,8 +23,8 @@ export default function Home() {
         </p>
       </div>
 
-      <div className="w-full max-w-l">
-        <div className="h-4 border-t-2 border-dashed border-border mb-16" />
+      <div className="w-full max-w-md">
+        <div className="h-2 border-t border-dashed border-border mb-16" />
       </div>
 
       <div className="w-full max-w-4xl">
